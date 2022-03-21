@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang='cn'>
+
+<head>
+  <meta name="generator" content="Hexo 5.4.1">
+  <meta charset="utf-8">
+  
+
+  <meta http-equiv='x-dns-prefetch-control' content='on' />
+  <link rel='dns-prefetch' href='https://cdn.jsdelivr.net'>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+
+  <meta name="renderer" content="webkit">
+  <meta name="force-rendering" content="webkit">
+  <meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1">
+  <meta name="HandheldFriendly" content="True" >
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta name="theme-color" content="#f8f8f8">
+  <title>UE 渲染改造：交叉渐变效果 Part.1 前言 - malos-blog</title>
+
+  
+    <meta name="description" content="UE 渲染改造：交叉渐变效果使用 Unreal Engine 5 进行实现和演示。  这篇文章所介绍的技术，在原理层面比较简单，但如果需要将此技术优雅地植入到引擎现有的庞杂逻辑中，则需要对引擎本身的构成有着一定程度上的了解，因此这篇文章希望能够通过一个具体案例，让初次接触相关方向的读者熟悉 UE 渲染器中各种模块的架构。 由于 UE 本身非常庞大，想要充分理解其体系中的全部实现细节几乎是不可能的。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="UE 渲染改造：交叉渐变效果 Part.1 前言">
+<meta property="og:url" content="https://gavinkg.github.io/blog/UE%20%E6%B8%B2%E6%9F%93%E6%94%B9%E9%80%A0%EF%BC%9A%E4%BA%A4%E5%8F%89%E6%B8%90%E5%8F%98%E6%95%88%E6%9E%9C/UE%20%E6%B8%B2%E6%9F%93%E6%94%B9%E9%80%A0%EF%BC%9A%E4%BA%A4%E5%8F%89%E6%B8%90%E5%8F%98%E6%95%88%E6%9E%9C%20Part.1%20%E5%89%8D%E8%A8%80/index.html">
+<meta property="og:site_name" content="malos-blog">
+<meta property="og:description" content="UE 渲染改造：交叉渐变效果使用 Unreal Engine 5 进行实现和演示。  这篇文章所介绍的技术，在原理层面比较简单，但如果需要将此技术优雅地植入到引擎现有的庞杂逻辑中，则需要对引擎本身的构成有着一定程度上的了解，因此这篇文章希望能够通过一个具体案例，让初次接触相关方向的读者熟悉 UE 渲染器中各种模块的架构。 由于 UE 本身非常庞大，想要充分理解其体系中的全部实现细节几乎是不可能的。">
+<meta property="og:locale">
+<meta property="og:image" content="https://gavinkg.github.io/blog/UE%20%E6%B8%B2%E6%9F%93%E6%94%B9%E9%80%A0%EF%BC%9A%E4%BA%A4%E5%8F%89%E6%B8%90%E5%8F%98%E6%95%88%E6%9E%9C/UE%20%E6%B8%B2%E6%9F%93%E6%94%B9%E9%80%A0%EF%BC%9A%E4%BA%A4%E5%8F%89%E6%B8%90%E5%8F%98%E6%95%88%E6%9E%9C%20Part.1%20%E5%89%8D%E8%A8%80/ppt.png">
+<meta property="og:image" content="https://gavinkg.github.io/blog/UE%20%E6%B8%B2%E6%9F%93%E6%94%B9%E9%80%A0%EF%BC%9A%E4%BA%A4%E5%8F%89%E6%B8%90%E5%8F%98%E6%95%88%E6%9E%9C/UE%20%E6%B8%B2%E6%9F%93%E6%94%B9%E9%80%A0%EF%BC%9A%E4%BA%A4%E5%8F%89%E6%B8%90%E5%8F%98%E6%95%88%E6%9E%9C%20Part.1%20%E5%89%8D%E8%A8%80/uncharted_1.png">
+<meta property="og:image" content="https://gavinkg.github.io/blog/UE%20%E6%B8%B2%E6%9F%93%E6%94%B9%E9%80%A0%EF%BC%9A%E4%BA%A4%E5%8F%89%E6%B8%90%E5%8F%98%E6%95%88%E6%9E%9C/UE%20%E6%B8%B2%E6%9F%93%E6%94%B9%E9%80%A0%EF%BC%9A%E4%BA%A4%E5%8F%89%E6%B8%90%E5%8F%98%E6%95%88%E6%9E%9C%20Part.1%20%E5%89%8D%E8%A8%80/multi-view_gbuffer.png">
+<meta property="article:published_time" content="2022-03-19T16:00:00.000Z">
+<meta property="article:modified_time" content="2022-03-21T13:52:34.632Z">
+<meta property="article:author" content="Gavin_KG">
+<meta property="article:tag" content="blog">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://gavinkg.github.io/blog/UE%20%E6%B8%B2%E6%9F%93%E6%94%B9%E9%80%A0%EF%BC%9A%E4%BA%A4%E5%8F%89%E6%B8%90%E5%8F%98%E6%95%88%E6%9E%9C/UE%20%E6%B8%B2%E6%9F%93%E6%94%B9%E9%80%A0%EF%BC%9A%E4%BA%A4%E5%8F%89%E6%B8%90%E5%8F%98%E6%95%88%E6%9E%9C%20Part.1%20%E5%89%8D%E8%A8%80/ppt.png">
+  
+  
+
+  <!-- feed -->
+  
+    <link rel="alternate" href="/blog/atom.xml" title="malos-blog" type="application/atom+xml">
+  
+
+  
+    
+<link rel="stylesheet" href="/blog/css/main.css">
+
+  
+
+  
+
+  
+</head>
+
+<body>
+  
+
+
+  <div class='l_body' id='start'>
+    <aside class='l_left' layout='post'>
+    
+
+
+<header class="header">
+
+<div class="logo-wrap"><a class="title" href="/blog/"><div class="main">malos-blog</div><div class="sub cap">subtitle</div></a></div>
+<nav class="menu dis-select"><a class="nav-item active" href="/blog/">博客</a><a class="nav-item" href="/blog/about/">关于</a></nav></header>
+
+<div class="widgets">
+
+<div class="widget-wrap single" id="toc"><div class="widget-header cap dis-select"><span class="name">本文目录</span></div><div class="widget-body fs14"><div class="doc-tree active"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#Part-1-%E5%89%8D%E8%A8%80"><span class="toc-text">Part.1 前言</span></a></li></ol></div></div></div>
+
+
+</div>
+<footer class="footer dis-select"><div class="social-wrap"><a class="social" title="GitHub" href="https://github.com/GavinKG" target="_blank" rel="external nofollow noopener noreferrer"><img class="lazy" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAABGdBTUEAALGPC/xhBQAAADhlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAAqACAAQAAAABAAAAAaADAAQAAAABAAAAAQAAAADa6r/EAAAAC0lEQVQIHWNgAAIAAAUAAY27m/MAAAAASUVORK5CYII=" data-src="https://cdn.jsdelivr.net/gh/cdn-x/placeholder@1.0.3/social/08a41b181ce68.svg"/></a></div></footer>
+
+    </aside>
+    <div class='l_main'>
+      
+
+      
+
+
+<div class="bread-nav fs12"><div id="breadcrumb"><a class="cap breadcrumb" href="/blog/">malos-blog</a><span class="sep"></span><a class="cap breadcrumb" href="/blog/">文章</a></div><div id="post-meta">发布于&nbsp;<time datetime="2022-03-19T16:00:00.000Z">2022-03-20</time></div></div>
+
+<article class='content md post'>
+<h1 class="article-title"><span>UE 渲染改造：交叉渐变效果 Part.1 前言</span></h1>
+<h1 id="UE-渲染改造：交叉渐变效果"><a href="#UE-渲染改造：交叉渐变效果" class="headerlink" title="UE 渲染改造：交叉渐变效果"></a>UE 渲染改造：交叉渐变效果</h1><p>使用 Unreal Engine 5 进行实现和演示。</p>
+<blockquote>
+<p>这篇文章所介绍的技术，在原理层面<strong>比较简单</strong>，但如果需要将此技术优雅地植入到引擎现有的庞杂逻辑中，则需要对引擎本身的构成有着一定程度上的了解，因此这篇文章希望能够通过一个具体案例，让初次接触相关方向的读者熟悉 UE 渲染器中各种模块的架构。</p>
+<p>由于 UE 本身非常庞大，想要充分理解其体系中的全部实现细节几乎是不可能的。同时，网上虽然存在的大量<strong>自底向上</strong>，展示类关系图和源码分析的文章，<strong>但是在没有案例和动机的情况下，这些文章的理解难度同样也非常高</strong>，一些文章甚至不如直接亲自阅读源码和打断点看调用堆栈的主动学习方法有效（毕竟 C++ 本身就是给人阅读的）。因此，这里我通过一个具体案例，<strong>自顶向下</strong>地，按需引入 UE 中一些模块的原理，并且展现出思考解决方法的过程，将各种实现方案的优雅性、性能、效果罗列出来并进行取舍，并附上一些延伸阅读材料。<strong>当通过案例大概掌握各个模块的宏观架构之后，再去自底向上地细致了解其实现细节才是学习复杂软件系统的最佳途径。</strong></p>
+<p>如果想直接了解实现过程，<strong>可以忽略所有引用块内的文本</strong>（样式同此段文本），或者直接找到文章中的代码块即可。</p>
+</blockquote>
+<h2 id="Part-1-前言"><a href="#Part-1-前言" class="headerlink" title="Part.1 前言"></a>Part.1 前言</h2><p><img class="lazy" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAABGdBTUEAALGPC/xhBQAAADhlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAAqACAAQAAAABAAAAAaADAAQAAAABAAAAAQAAAADa6r/EAAAAC0lEQVQIHWNgAAIAAAUAAY27m/MAAAAASUVORK5CYII=" data-src="ppt.png" alt="Powerpoint 中大量可供选择的转场方法"></p>
+<p>不知道大家有没有发现，游戏的过场动画中，两个机位之间直接切换（即 Hard Cut）比较多，而用花里胡哨的渐变效果的却几乎没有。我认为，一是在游戏一直在效仿的电影行业当中，直接切换的应用比例就非常高，只有在切换大场景/时间线这种需要让用户意识到蒙太奇的存在时才需要做一些渐变切换效果，例如交叉渐变或者擦除渐变（著名的例子包括星战系列、夺宝奇兵，以及一些好莱坞的老电影）；二是，渐变效果注定会在渐变的过程中，让两个镜头的画面同时存在于屏幕上，<strong>在实时渲染中无疑是压力很大的</strong>——渲染器需要在渐变这段时间同时生成两个不同角度机位的画面，甚至这两个机位分别属于完全不同的两个场景。</p>
+<p><img class="lazy" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAABGdBTUEAALGPC/xhBQAAADhlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAAqACAAQAAAABAAAAAaADAAQAAAABAAAAAQAAAADa6r/EAAAAC0lEQVQIHWNgAAIAAAUAAY27m/MAAAAASUVORK5CYII=" data-src="uncharted_1.png" alt="《神秘海域4》中的几个经典专场"></p>
+<p>但在游戏的艺术化进程中，我们偶尔也需要通过交叉渐变来满足导演的表达要求。大名鼎鼎的《神秘海域4》中就存在着大量的渐变手法来突出场景的时空转换。正好最近在做自己的小项目时，也遇到了类似的要求，也大概列举了一下几种实现起来比较简单的解决方案：</p>
+<ul>
+<li><p>最暴力的解决方案：同时渲染两个相机呗。但是在 UE 中，如果我想渲染到 RT，需要使用 Scene Capture 2D，然后后处理材质读入两个 RT 做混合，但我又想在渐变完了之后将视角重新交还到角色逻辑上做正常的玩家视角，还得考虑到万一目标视角就是玩家可以立刻控制的呢？这种乱糟糟的逻辑很难保证框架的优雅性，因此放弃。</p>
+</li>
+<li><p>修改 UE 自带的多 View 渲染机制。但简单的阅读代码就可以发现，UE 做出来多 View 机制其实就是针对本地分屏来设计的，在 Base Pass 中，不同的 View 都渲染到同一组 Scene Texture 组合，通过 Viewport 来控制分屏中每一个用户视角的渲染范围。这显然不能直接用在渐变中。</p>
+<p><img class="lazy" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAABGdBTUEAALGPC/xhBQAAADhlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAAqACAAQAAAABAAAAAaADAAQAAAABAAAAAQAAAADa6r/EAAAAC0lEQVQIHWNgAAIAAAUAAY27m/MAAAAASUVORK5CYII=" data-src="multi-view_gbuffer.png" alt="multi-view_gbuffer"></p>
+<blockquote>
+<p>当然，我们可以借助着分屏的渲染机制，让渐变前后画面分别对应在 Scene Texture 的不同位置上，但通过改变每一个 View 渲染时的变换矩阵保留原始横纵比（类似于将正常画面挤压到画面左半边/右半边）。在后处理过后增加一个 Pass，将左右半边合成回渐变。这种实现方法可以说是在能够保证渐变前后视角都是动态的情况下，最省性能的做法了（因为两个视角共享一个场景，同时输出的像素数量没有变化），但其在渐变时，将前后视角的渲染分辨率分别在横向上减半，此时再试图去引入升采样机制来弥补分辨率损失的话，可能一片文章真的就写不下了……</p>
+</blockquote>
+</li>
+<li><p>录制视频（FMV）。此种实现方法被大量用在游戏的过场动画中，其拥有最好的画面质量，同时几乎不耗费性能。当然缺点也显而易见，其不能适用于动态视角切换，同时视频的分辨率、码率、文件大小也都会产生问题。</p>
+</li>
+<li><p><strong>在转换之前“截一帧”，转换时用这一帧静态图和转换后的动态视角实现渐变效果。</strong>此种方法不足之处在于渐变前的视角在渐变时变成了静态图，容易穿帮，但其在性能、内存占用和画质上都有不错的表现，非常适用于视角移动不太剧烈的场景中。同时，如果将截的这张图作为自定义节点暴露给材质蓝图的话，借助着 UE 强大的材质编辑能力，使用后处理材质可以完全将渐变效果交给美术来调节。<strong>本文中介绍的既是这种实现方案</strong>。</p>
+</li>
+</ul>
+<blockquote>
+<p>有些人可能会问了，保留一帧有啥可大动干戈改造渲染器的，Reddit 上一搜净是这种实现方法。不过大多数方法仍然是通过使用 Scene Capture 2D 来捕捉场景画面到一个 RT 资源上，进而被后处理材质所使用。Scene Capture 2D 在捕捉场景时，由于和场景视角（View）本身都不是一个 View Family，其性能开销比多 View 渲染还要大很多，虽然只保留一帧，但这一帧显然会造成不小的卡顿，无法作为正式项目的解决方法，<strong>因此需要更改渲染器，让渲染器能够保留特定的一帧，并且提供给后处理材质。</strong></p>
+</blockquote>
+
+
+<div class="article-footer reveal fs14"><section id="license"><div class="header"><span>许可协议</span></div><div class="body"><p>本文采用 <a target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">署名-非商业性使用-相同方式共享 4.0 国际</a> 许可协议，转载请注明出处。</p>
+</div></section></div>
+
+</article>
+
+<div class="related-wrap reveal" id="read-next"><section class="header cap theme"><span>接下来阅读</span></section><section class="body fs14"><a id="next" href="/blog/UE%20%E6%B8%B2%E6%9F%93%E6%94%B9%E9%80%A0%EF%BC%9A%E4%BA%A4%E5%8F%89%E6%B8%90%E5%8F%98%E6%95%88%E6%9E%9C/UE%20%E6%B8%B2%E6%9F%93%E6%94%B9%E9%80%A0%EF%BC%9A%E4%BA%A4%E5%8F%89%E6%B8%90%E5%8F%98%E6%95%88%E6%9E%9C%20Part.2%20%E5%AE%9E%E7%8E%B0%E6%B8%B2%E6%9F%93%E7%AE%A1%E7%BA%BF%E4%B8%AD%E4%BF%9D%E7%95%99%E4%B8%80%E5%B8%A7%E7%9A%84%E5%8A%9F%E8%83%BD/">UE 渲染改造：交叉渐变效果 Part.2 实现渲染管线中保留一帧的功能<span class="note">较早</span></a><div class="line"></div><a id="prev" href="/blog/UE%20%E4%B8%AD%E5%AF%B9%E7%AA%97%E5%8F%A3%E5%92%8C%E8%A7%86%E5%8F%A3%E7%9A%84%E6%8A%BD%E8%B1%A1/">UE 中对窗口和视口的抽象：Viewport、ViewportClient、ViewFamily、View、ViewStates、SceneRenderer<span class="note">较新</span></a><div class="line"></div><a id="more" href="/blog/archives">检索全部文章</a></section></div>
+
+
+
+
+
+
+
+
+      
+<footer class="page-footer reveal fs12"><hr><div class="text"><p>本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a> 许可协议，转载请注明出处。</p>
+<p>本站由 <a href="https://gavinkg.github.io/blog/blog/">@Gavin_KG</a> 创建，使用 <a target="_blank" rel="noopener" href="https://github.com/xaoxuu/hexo-theme-stellar/tree/1.5.1" title="v1.5.1">Stellar</a> 作为主题。</p>
+</div></footer>
+
+      <div class='float-panel mobile-only blur' style='display:none'>
+  <button type='button' class='sidebar-toggle mobile' onclick='sidebar.toggle()'>
+    <svg class="icon" style="width: 1em; height: 1em;vertical-align: middle;fill: currentColor;overflow: hidden;" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="15301"><path d="M566.407 808.3c26.9-0.1 49.3-20.8 51.6-47.6-1.9-27.7-23.9-49.7-51.6-51.6h-412.6c-28.2-1.4-52.6 19.5-55.5 47.6 2.3 26.8 24.6 47.5 51.6 47.6h416.5v4z m309.3-249.9c26.9-0.1 49.3-20.8 51.6-47.6-2.2-26.8-24.6-47.5-51.6-47.6h-721.9c-27.7-2.8-52.5 17.4-55.3 45.1-0.1 0.8-0.1 1.7-0.2 2.5 0.9 27.2 23.6 48.5 50.7 47.6H875.707z m-103.1-245.9c26.9-0.1 49.3-20.8 51.6-47.6-0.4-28.3-23.2-51.1-51.5-51.6h-618.9c-29.5-1.1-54.3 21.9-55.5 51.4v0.2c1.4 27.8 25.2 49.2 53 47.8 0.8 0 1.7-0.1 2.5-0.2h618.8z" p-id="15302"></path><path d="M566.407 808.3c26.9-0.1 49.3-20.8 51.6-47.6-1.9-27.7-23.9-49.7-51.6-51.6h-412.6c-28.2-1.4-52.6 19.5-55.5 47.6 1.9 27.7 23.9 49.7 51.6 51.6h416.5z m309.3-249.9c26.9-0.1 49.3-20.8 51.6-47.6-2.2-26.8-24.6-47.5-51.6-47.6h-721.9c-27.7-2.8-52.5 17.4-55.3 45.1-0.1 0.8-0.1 1.7-0.2 2.5 0.9 27.2 23.6 48.5 50.7 47.6H875.707z m-103.1-245.9c26.9-0.1 49.3-20.8 51.6-47.6-0.4-28.3-23.2-51.1-51.5-51.6h-618.9c-29.5-1.1-54.3 21.9-55.5 51.4v0.2c1.4 27.8 25.2 49.2 53 47.8 0.8 0 1.7-0.1 2.5-0.2h618.8z" p-id="15303"></path></svg>
+  </button>
+</div>
+
+    </div>
+  </div>
+  <div class='scripts'>
+    <script type="text/javascript">
+  stellar = {
+    // 懒加载 css https://github.com/filamentgroup/loadCSS
+    loadCSS: (href, before, media, attributes) => {
+      var doc = window.document;
+      var ss = doc.createElement("link");
+      var ref;
+      if (before) {
+        ref = before;
+      } else {
+        var refs = (doc.body || doc.getElementsByTagName("head")[0]).childNodes;
+        ref = refs[refs.length - 1];
+      }
+      var sheets = doc.styleSheets;
+      if (attributes) {
+        for (var attributeName in attributes) {
+          if (attributes.hasOwnProperty(attributeName)) {
+            ss.setAttribute(attributeName, attributes[attributeName]);
+          }
+        }
+      }
+      ss.rel = "stylesheet";
+      ss.href = href;
+      ss.media = "only x";
+      function ready(cb) {
+        if (doc.body) {
+          return cb();
+        }
+        setTimeout(function () {
+          ready(cb);
+        });
+      }
+      ready(function () {
+        ref.parentNode.insertBefore(ss, before ? ref : ref.nextSibling);
+      });
+      var onloadcssdefined = function (cb) {
+        var resolvedHref = ss.href;
+        var i = sheets.length;
+        while (i--) {
+          if (sheets[i].href === resolvedHref) {
+            return cb();
+          }
+        }
+        setTimeout(function () {
+          onloadcssdefined(cb);
+        });
+      };
+      function loadCB() {
+        if (ss.addEventListener) {
+          ss.removeEventListener("load", loadCB);
+        }
+        ss.media = media || "all";
+      }
+      if (ss.addEventListener) {
+        ss.addEventListener("load", loadCB);
+      }
+      ss.onloadcssdefined = onloadcssdefined;
+      onloadcssdefined(loadCB);
+      return ss;
+    },
+
+    // 从 butterfly 和 volantis 获得灵感
+    loadScript: (src, opt) => new Promise((resolve, reject) => {
+      var script = document.createElement('script');
+      script.src = src;
+      if (opt) {
+        for (let key of Object.keys(opt)) {
+          script[key] = opt[key]
+        }
+      } else {
+        // 默认异步，如果需要同步，第二个参数传入 {} 即可
+        script.async = true
+      }
+      script.onerror = reject
+      script.onload = script.onreadystatechange = function() {
+        const loadState = this.readyState
+        if (loadState && loadState !== 'loaded' && loadState !== 'complete') return
+        script.onload = script.onreadystatechange = null
+        resolve()
+      }
+      document.head.appendChild(script)
+    }),
+
+    // https://github.com/jerryc127/hexo-theme-butterfly
+    jQuery: (fn) => {
+      if (typeof jQuery === 'undefined') {
+        stellar.loadScript(stellar.plugins.jQuery).then(fn)
+      } else {
+        fn()
+      }
+    }
+  };
+  stellar.github = 'https://github.com/xaoxuu/hexo-theme-stellar/tree/1.5.1';
+  stellar.config = {
+    date_suffix: {
+      just: '刚刚',
+      min: '分钟前',
+      hour: '小时前',
+      day: '天前',
+      month: '个月前',
+    },
+  };
+
+  // required plugins (only load if needs)
+  stellar.plugins = {
+    jQuery: 'https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js',
+    sitesjs: '/blog/js/plugins/sites.js',
+    friendsjs: '/blog/js/plugins/friends.js',
+  };
+
+  // optional plugins
+  if ('true' == 'true') {
+    stellar.plugins.lazyload = Object.assign({"enable":true,"js":"https://cdn.jsdelivr.net/npm/vanilla-lazyload@17.3.1/dist/lazyload.min.js","transition":"blur"});
+  }
+  if ('true' == 'true') {
+    stellar.plugins.swiper = Object.assign({"enable":true,"css":"https://unpkg.com/swiper/swiper-bundle.min.css","js":"https://unpkg.com/swiper/swiper-bundle.min.js"});
+  }
+  if ('' == 'true') {
+    stellar.plugins.scrollreveal = Object.assign({"enable":null,"js":"https://cdn.jsdelivr.net/npm/scrollreveal@4.0.9/dist/scrollreveal.min.js","distance":"8px","duration":500,"interval":100,"scale":1});
+  }
+  if ('true' == 'true') {
+    stellar.plugins.preload = Object.assign({"enable":true,"service":"flying_pages","instant_page":"https://cdn.jsdelivr.net/gh/volantis-x/cdn-volantis@4.1.2/js/instant_page.js","flying_pages":"https://cdn.jsdelivr.net/gh/gijo-varghese/flying-pages@2.1.2/flying-pages.min.js"});
+  }
+</script>
+
+<!-- required -->
+
+  
+<script src="/blog/js/main.js" async></script>
+
+
+
+<!-- optional -->
+
+
+
+<!-- inject -->
+
+
+  </div>
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+        tex2jax: {
+            inlineMath: [ ["$","$"], ["\\(","\\)"] ],
+            skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'],
+            processEscapes: true
+        }
+    });
+    MathJax.Hub.Queue(function() {
+        var all = MathJax.Hub.getAllJax();
+        for (var i = 0; i < all.length; ++i)
+            all[i].SourceElement().parentNode.className += ' has-jax';
+    });
+</script>
+<script src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+</body>
+</html>

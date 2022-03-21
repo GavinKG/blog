@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang='cn'>
+
+<head>
+  <meta name="generator" content="Hexo 5.4.1">
+  <meta charset="utf-8">
+  
+
+  <meta http-equiv='x-dns-prefetch-control' content='on' />
+  <link rel='dns-prefetch' href='https://cdn.jsdelivr.net'>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+
+  <meta name="renderer" content="webkit">
+  <meta name="force-rendering" content="webkit">
+  <meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1">
+  <meta name="HandheldFriendly" content="True" >
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta name="theme-color" content="#f8f8f8">
+  <title>UE4 实现多颜色描边+遮挡高亮，以及移动端效果/性能分析（踩坑实录） - malos-blog</title>
+
+  
+    <meta name="description" content="UE4 实现多颜色描边+遮挡高亮，以及移动端效果&#x2F;性能分析（踩坑实录） 示例项目的 GitHub 链接：https:&#x2F;&#x2F;github.com&#x2F;GavinKG&#x2F;UE4-Multicolor-Outline-and-Silhouette 使用 Unreal Engine 4.27。示例项目未改动引擎。 Part.1 前言最近又从引擎底层脱身，打了打美术的杂，也算换换脑子，毕竟要成为全栈游戏制作人嘛（笑">
+<meta property="og:type" content="article">
+<meta property="og:title" content="UE4 实现多颜色描边+遮挡高亮，以及移动端效果&#x2F;性能分析（踩坑实录）">
+<meta property="og:url" content="https://gavinkg.github.io/blog/UE4%20%E5%AE%9E%E7%8E%B0%E5%A4%9A%E9%A2%9C%E8%89%B2%E6%8F%8F%E8%BE%B9+%E9%81%AE%E6%8C%A1%E9%AB%98%E4%BA%AE/index.html">
+<meta property="og:site_name" content="malos-blog">
+<meta property="og:description" content="UE4 实现多颜色描边+遮挡高亮，以及移动端效果&#x2F;性能分析（踩坑实录） 示例项目的 GitHub 链接：https:&#x2F;&#x2F;github.com&#x2F;GavinKG&#x2F;UE4-Multicolor-Outline-and-Silhouette 使用 Unreal Engine 4.27。示例项目未改动引擎。 Part.1 前言最近又从引擎底层脱身，打了打美术的杂，也算换换脑子，毕竟要成为全栈游戏制作人嘛（笑">
+<meta property="og:locale">
+<meta property="og:image" content="https://gavinkg.github.io/blog/UE4%20%E5%AE%9E%E7%8E%B0%E5%A4%9A%E9%A2%9C%E8%89%B2%E6%8F%8F%E8%BE%B9+%E9%81%AE%E6%8C%A1%E9%AB%98%E4%BA%AE/banner.jpg">
+<meta property="og:image" content="https://gavinkg.github.io/blog/UE4%20%E5%AE%9E%E7%8E%B0%E5%A4%9A%E9%A2%9C%E8%89%B2%E6%8F%8F%E8%BE%B9+%E9%81%AE%E6%8C%A1%E9%AB%98%E4%BA%AE/proj_settings.png">
+<meta property="og:image" content="https://gavinkg.github.io/blog/UE4%20%E5%AE%9E%E7%8E%B0%E5%A4%9A%E9%A2%9C%E8%89%B2%E6%8F%8F%E8%BE%B9+%E9%81%AE%E6%8C%A1%E9%AB%98%E4%BA%AE/sobel_stencil.png">
+<meta property="og:image" content="https://gavinkg.github.io/blog/UE4%20%E5%AE%9E%E7%8E%B0%E5%A4%9A%E9%A2%9C%E8%89%B2%E6%8F%8F%E8%BE%B9+%E9%81%AE%E6%8C%A1%E9%AB%98%E4%BA%AE/sobel_stencil_node.png">
+<meta property="og:image" content="https://gavinkg.github.io/blog/UE4%20%E5%AE%9E%E7%8E%B0%E5%A4%9A%E9%A2%9C%E8%89%B2%E6%8F%8F%E8%BE%B9+%E9%81%AE%E6%8C%A1%E9%AB%98%E4%BA%AE/mask_flow.png">
+<meta property="og:image" content="https://gavinkg.github.io/blog/UE4%20%E5%AE%9E%E7%8E%B0%E5%A4%9A%E9%A2%9C%E8%89%B2%E6%8F%8F%E8%BE%B9+%E9%81%AE%E6%8C%A1%E9%AB%98%E4%BA%AE/visible_object_mask.png">
+<meta property="og:image" content="https://gavinkg.github.io/blog/UE4%20%E5%AE%9E%E7%8E%B0%E5%A4%9A%E9%A2%9C%E8%89%B2%E6%8F%8F%E8%BE%B9+%E9%81%AE%E6%8C%A1%E9%AB%98%E4%BA%AE/color_blend.png">
+<meta property="og:image" content="https://gavinkg.github.io/blog/UE4%20%E5%AE%9E%E7%8E%B0%E5%A4%9A%E9%A2%9C%E8%89%B2%E6%8F%8F%E8%BE%B9+%E9%81%AE%E6%8C%A1%E9%AB%98%E4%BA%AE/mat.png">
+<meta property="og:image" content="https://gavinkg.github.io/blog/UE4%20%E5%AE%9E%E7%8E%B0%E5%A4%9A%E9%A2%9C%E8%89%B2%E6%8F%8F%E8%BE%B9+%E9%81%AE%E6%8C%A1%E9%AB%98%E4%BA%AE/mat_inspector.png">
+<meta property="og:image" content="https://gavinkg.github.io/blog/UE4%20%E5%AE%9E%E7%8E%B0%E5%A4%9A%E9%A2%9C%E8%89%B2%E6%8F%8F%E8%BE%B9+%E9%81%AE%E6%8C%A1%E9%AB%98%E4%BA%AE/volume.png">
+<meta property="og:image" content="https://gavinkg.github.io/blog/UE4%20%E5%AE%9E%E7%8E%B0%E5%A4%9A%E9%A2%9C%E8%89%B2%E6%8F%8F%E8%BE%B9+%E9%81%AE%E6%8C%A1%E9%AB%98%E4%BA%AE/editor_showcase.png">
+<meta property="og:image" content="https://gavinkg.github.io/blog/UE4%20%E5%AE%9E%E7%8E%B0%E5%A4%9A%E9%A2%9C%E8%89%B2%E6%8F%8F%E8%BE%B9+%E9%81%AE%E6%8C%A1%E9%AB%98%E4%BA%AE/without_highlight.png">
+<meta property="og:image" content="https://gavinkg.github.io/blog/UE4%20%E5%AE%9E%E7%8E%B0%E5%A4%9A%E9%A2%9C%E8%89%B2%E6%8F%8F%E8%BE%B9+%E9%81%AE%E6%8C%A1%E9%AB%98%E4%BA%AE/diff_depth.png">
+<meta property="og:image" content="https://gavinkg.github.io/blog/UE4%20%E5%AE%9E%E7%8E%B0%E5%A4%9A%E9%A2%9C%E8%89%B2%E6%8F%8F%E8%BE%B9+%E9%81%AE%E6%8C%A1%E9%AB%98%E4%BA%AE/diff_stencil.png">
+<meta property="og:image" content="https://gavinkg.github.io/blog/UE4%20%E5%AE%9E%E7%8E%B0%E5%A4%9A%E9%A2%9C%E8%89%B2%E6%8F%8F%E8%BE%B9+%E9%81%AE%E6%8C%A1%E9%AB%98%E4%BA%AE/smoothstep.png">
+<meta property="og:image" content="https://gavinkg.github.io/blog/UE4%20%E5%AE%9E%E7%8E%B0%E5%A4%9A%E9%A2%9C%E8%89%B2%E6%8F%8F%E8%BE%B9+%E9%81%AE%E6%8C%A1%E9%AB%98%E4%BA%AE/Screenshot_20220108-181112_3329236bee1bbacba1d22d113a1b46b2.jpg">
+<meta property="og:image" content="https://gavinkg.github.io/blog/UE4%20%E5%AE%9E%E7%8E%B0%E5%A4%9A%E9%A2%9C%E8%89%B2%E6%8F%8F%E8%BE%B9+%E9%81%AE%E6%8C%A1%E9%AB%98%E4%BA%AE/Screenshot_20220108-181923_3329236bee1bbacba1d22d113a1b46b2.jpg">
+<meta property="og:image" content="https://gavinkg.github.io/blog/UE4%20%E5%AE%9E%E7%8E%B0%E5%A4%9A%E9%A2%9C%E8%89%B2%E6%8F%8F%E8%BE%B9+%E9%81%AE%E6%8C%A1%E9%AB%98%E4%BA%AE/oc_no_customdepth.png">
+<meta property="og:image" content="https://gavinkg.github.io/blog/UE4%20%E5%AE%9E%E7%8E%B0%E5%A4%9A%E9%A2%9C%E8%89%B2%E6%8F%8F%E8%BE%B9+%E9%81%AE%E6%8C%A1%E9%AB%98%E4%BA%AE/oc_with_customdepth.png">
+<meta property="og:image" content="https://gavinkg.github.io/blog/UE4%20%E5%AE%9E%E7%8E%B0%E5%A4%9A%E9%A2%9C%E8%89%B2%E6%8F%8F%E8%BE%B9+%E9%81%AE%E6%8C%A1%E9%AB%98%E4%BA%AE/rdc_rt.png">
+<meta property="og:image" content="https://gavinkg.github.io/blog/UE4%20%E5%AE%9E%E7%8E%B0%E5%A4%9A%E9%A2%9C%E8%89%B2%E6%8F%8F%E8%BE%B9+%E9%81%AE%E6%8C%A1%E9%AB%98%E4%BA%AE/vk_dynamic_pipeline.png">
+<meta property="article:published_time" content="2022-01-04T16:00:00.000Z">
+<meta property="article:modified_time" content="2022-03-21T13:52:34.759Z">
+<meta property="article:author" content="Gavin_KG">
+<meta property="article:tag" content="UE">
+<meta property="article:tag" content="UE4">
+<meta property="article:tag" content="渲染">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://gavinkg.github.io/blog/UE4%20%E5%AE%9E%E7%8E%B0%E5%A4%9A%E9%A2%9C%E8%89%B2%E6%8F%8F%E8%BE%B9+%E9%81%AE%E6%8C%A1%E9%AB%98%E4%BA%AE/banner.jpg">
+  
+  
+
+  <!-- feed -->
+  
+    <link rel="alternate" href="/blog/atom.xml" title="malos-blog" type="application/atom+xml">
+  
+
+  
+    
+<link rel="stylesheet" href="/blog/css/main.css">
+
+  
+
+  
+
+  
+</head>
+
+<body>
+  
+
+
+  <div class='l_body' id='start'>
+    <aside class='l_left' layout='post'>
+    
+
+
+<header class="header">
+
+<div class="logo-wrap"><a class="title" href="/blog/"><div class="main">malos-blog</div><div class="sub cap">subtitle</div></a></div>
+<nav class="menu dis-select"><a class="nav-item active" href="/blog/">博客</a><a class="nav-item" href="/blog/about/">关于</a></nav></header>
+
+<div class="widgets">
+
+<div class="widget-wrap single" id="toc"><div class="widget-header cap dis-select"><span class="name">本文目录</span></div><div class="widget-body fs14"><div class="doc-tree active"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#Part-1-%E5%89%8D%E8%A8%80"><span class="toc-text">Part.1 前言</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Part-2-%E6%9D%90%E8%B4%A8%E5%AE%9E%E7%8E%B0"><span class="toc-text">Part.2 材质实现</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E6%9B%B4%E6%94%B9%E9%A1%B9%E7%9B%AE%E8%AE%BE%E7%BD%AE"><span class="toc-text">1. 更改项目设置</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E5%B0%86%E5%BE%85%E6%8F%8F%E8%BE%B9%E9%AB%98%E4%BA%AE%E7%89%A9%E4%BD%93%E9%85%8D%E7%BD%AE-Custom-Depth-Stencil-Write"><span class="toc-text">2. 将待描边高亮物体配置 Custom Depth &#x2F; Stencil Write</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-%E5%AE%9E%E7%8E%B0-Sobel-%E7%AE%97%E5%AD%90%E5%BE%97%E5%88%B0%E8%BE%B9%E7%BC%98-Mask"><span class="toc-text">3. 实现 Sobel 算子得到边缘 Mask</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-%E5%8F%96%E5%BE%97%E9%81%AE%E6%8C%A1%E7%89%A9%E4%BD%93-Mask"><span class="toc-text">4. 取得遮挡物体 Mask</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-%E6%A0%B9%E6%8D%AE-CustomStencil-%E8%8E%B7%E5%8F%96%E5%AF%B9%E5%BA%94%E9%A2%9C%E8%89%B2%E5%80%BC"><span class="toc-text">5. 根据 CustomStencil 获取对应颜色值</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-%E5%BE%97%E5%88%B0%E6%9C%80%E7%BB%88-Mask-%E5%80%BC"><span class="toc-text">6. 得到最终 Mask 值</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#7-%E8%AE%BE%E7%BD%AE%E5%85%A8%E5%B1%80%E5%90%8E%E5%A4%84%E7%90%86-Volume%EF%BC%8C%E5%B9%B6%E6%B7%BB%E5%8A%A0%E5%88%B0%E5%90%8E%E5%A4%84%E7%90%86%E6%9D%90%E8%B4%A8%E5%88%97%E8%A1%A8%E4%B8%AD"><span class="toc-text">7. 设置全局后处理 Volume，并添加到后处理材质列表中</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#8-%E7%9C%8B%E7%9C%8B%E6%95%88%E6%9E%9C"><span class="toc-text">8. 看看效果</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Part-3-%E7%A7%BB%E5%8A%A8%E7%AB%AF%E7%9A%84%E6%BD%9C%E5%9C%A8%E9%97%AE%E9%A2%98"><span class="toc-text">Part.3 移动端的潜在问题</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#Sobel-%E7%AE%97%E5%AD%90%E4%B8%AD%E4%BD%BF%E7%94%A8-CustomDepth-%E8%BF%98%E6%98%AF-CustomStencil%EF%BC%9F"><span class="toc-text">Sobel 算子中使用 CustomDepth 还是 CustomStencil？</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%A7%BB%E5%8A%A8%E5%B9%B3%E5%8F%B0%E5%90%8E%E5%A4%84%E7%90%86%E6%8B%BF%E4%B8%8D%E5%88%B0%E6%B7%B1%E5%BA%A6%EF%BC%9F"><span class="toc-text">移动平台后处理拿不到深度？</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Custom-Depth-%E6%80%A7%E8%83%BD%E9%97%AE%E9%A2%98%EF%BC%9F"><span class="toc-text">Custom Depth 性能问题？</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E9%81%AE%E6%8C%A1%E5%89%94%E9%99%A4"><span class="toc-text">遮挡剔除</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E5%A4%9A%E4%BD%99%E7%9A%84-Depth-Stencil-RT"><span class="toc-text">多余的 Depth &#x2F; Stencil RT</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#CustomDepth-Pass-%E4%B8%8D%E4%BD%BF%E7%94%A8-Instancing-%E7%BB%98%E5%88%B6"><span class="toc-text">CustomDepth Pass 不使用 Instancing 绘制</span></a></li></ol></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Part-4-%E5%90%8E%E8%AE%B0"><span class="toc-text">Part.4 后记</span></a></li></ol></div></div></div>
+
+
+</div>
+<footer class="footer dis-select"><div class="social-wrap"><a class="social" title="GitHub" href="https://github.com/GavinKG" target="_blank" rel="external nofollow noopener noreferrer"><img class="lazy" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAABGdBTUEAALGPC/xhBQAAADhlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAAqACAAQAAAABAAAAAaADAAQAAAABAAAAAQAAAADa6r/EAAAAC0lEQVQIHWNgAAIAAAUAAY27m/MAAAAASUVORK5CYII=" data-src="https://cdn.jsdelivr.net/gh/cdn-x/placeholder@1.0.3/social/08a41b181ce68.svg"/></a></div></footer>
+
+    </aside>
+    <div class='l_main'>
+      
+
+      
+
+
+<div class="bread-nav fs12"><div id="breadcrumb"><a class="cap breadcrumb" href="/blog/">malos-blog</a><span class="sep"></span><a class="cap breadcrumb" href="/blog/">文章</a></div><div id="post-meta">发布于&nbsp;<time datetime="2022-01-04T16:00:00.000Z">2022-01-05</time></div></div>
+
+<article class='content md post'>
+<h1 class="article-title"><span>UE4 实现多颜色描边+遮挡高亮，以及移动端效果/性能分析（踩坑实录）</span></h1>
+<h1 id="UE4-实现多颜色描边-遮挡高亮，以及移动端效果-性能分析（踩坑实录）"><a href="#UE4-实现多颜色描边-遮挡高亮，以及移动端效果-性能分析（踩坑实录）" class="headerlink" title="UE4 实现多颜色描边+遮挡高亮，以及移动端效果/性能分析（踩坑实录）"></a>UE4 实现多颜色描边+遮挡高亮，以及移动端效果/性能分析（踩坑实录）</h1><p><img class="lazy" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAABGdBTUEAALGPC/xhBQAAADhlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAAqACAAQAAAABAAAAAaADAAQAAAABAAAAAQAAAADa6r/EAAAAC0lEQVQIHWNgAAIAAAUAAY27m/MAAAAASUVORK5CYII=" data-src="banner.jpg" alt="banner"></p>
+<p>示例项目的 GitHub 链接：<a target="_blank" rel="noopener" href="https://github.com/GavinKG/UE4-Multicolor-Outline-and-Silhouette">https://github.com/GavinKG/UE4-Multicolor-Outline-and-Silhouette</a></p>
+<p>使用 Unreal Engine 4.27。示例项目未改动引擎。</p>
+<h2 id="Part-1-前言"><a href="#Part-1-前言" class="headerlink" title="Part.1 前言"></a>Part.1 前言</h2><p>最近又从引擎底层脱身，打了打美术的杂，也算换换脑子，毕竟要成为全栈游戏制作人嘛（笑。</p>
+<p>这里记录的东西乍一看很简单：<strong>特定物体的描边（Outline）和遮挡高亮（Silhouette），支持标记多种颜色，后处理单材质完成</strong>。嘿，这简单，Sobel 算子整起来！撸起袖子一把游戏的时间连了一个后处理材质，<strong>单 Pass 即可同时做到多颜色 + 描边 + 遮挡高亮 + 遮挡部位暗色</strong>。兴冲冲的打包到手机上才发现寄了，咋啥都没有呢。于是又花了一把游戏的时间，诞生了这篇踩坑笔记。</p>
+<p>哦对了，游戏名字叫《文明6》</p>
+<h2 id="Part-2-材质实现"><a href="#Part-2-材质实现" class="headerlink" title="Part.2 材质实现"></a>Part.2 材质实现</h2><p>踩坑之前，先让我们看看这个多颜色描边高亮<em>理论上</em>到底怎么实现的吧。</p>
+<h3 id="1-更改项目设置"><a href="#1-更改项目设置" class="headerlink" title="1. 更改项目设置"></a>1. 更改项目设置</h3><p>将 Rendering / PostProcessing / Custom Depth-Stencil Pass 更改为 Enabled with Stencil，如下图所示。</p>
+<p><img class="lazy" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAABGdBTUEAALGPC/xhBQAAADhlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAAqACAAQAAAABAAAAAaADAAQAAAABAAAAAQAAAADa6r/EAAAAC0lEQVQIHWNgAAIAAAUAAY27m/MAAAAASUVORK5CYII=" data-src="proj_settings.png" alt="proj_settings"></p>
+<h3 id="2-将待描边高亮物体配置-Custom-Depth-Stencil-Write"><a href="#2-将待描边高亮物体配置-Custom-Depth-Stencil-Write" class="headerlink" title="2. 将待描边高亮物体配置 Custom Depth / Stencil Write"></a>2. 将待描边高亮物体配置 Custom Depth / Stencil Write</h3><p>找到想要描边的网格物体（<code>UPrimitiveComponent</code>），<strong>勾选 “Render CustomDepth Pass”</strong>，既可以启用绘制到自定义深度和模板缓冲。</p>
+<p>其实如果将鼠标悬停在上述复选框中，可以看到下面这段话。看来这可是官方钦点的做法啊！</p>
+<blockquote>
+<p>If true, this component will be rendered in the CustomDepth pass (usually used for outlines)</p>
+</blockquote>
+<h3 id="3-实现-Sobel-算子得到边缘-Mask"><a href="#3-实现-Sobel-算子得到边缘-Mask" class="headerlink" title="3. 实现 Sobel 算子得到边缘 Mask"></a>3. 实现 Sobel 算子得到边缘 Mask</h3><p>我们新建一个 Material Function，直接按照 <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Sobel_operator">Wikipedia 给出的公式</a> 来算出梯度大小的平方。材质比较乱，直接上个预览图吧，要原始材质的的可以去文末的 Github 工程中找到。</p>
+<p><img class="lazy" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAABGdBTUEAALGPC/xhBQAAADhlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAAqACAAQAAAABAAAAAaADAAQAAAABAAAAAQAAAADa6r/EAAAAC0lEQVQIHWNgAAIAAAUAAY27m/MAAAAASUVORK5CYII=" data-src="sobel_stencil.png" alt="sobel_stencil"></p>
+<p><strong>这里我是用的 CustomStencil 节点采样得出的梯度</strong>，因为要参与描边的物体 Stencil 肯定大于等于1，因此所有大于 1 的梯度都可以看成是描边的边缘，因此直接 Saturate 以后可以直接形成边缘 Mask，0 代表没有描边，1 代表需要描边。</p>
+<p>但如果使用 CustomDepth 进行梯度计算，则需要指定一个描边梯度最小值和最大值，然后将得到的数据映射进去，再 clamp 输出。<strong>关于使用 CustomDepth 还是 CustomStencil 将会在下一章讨论。</strong></p>
+<p>我们可以通过<strong>控制相邻8个采样点的间隔距离</strong>来顺便控制一下描边的粗细。此时其实一个描边材质就实现完毕了。</p>
+<p><img class="lazy" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAABGdBTUEAALGPC/xhBQAAADhlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAAqACAAQAAAABAAAAAaADAAQAAAABAAAAAQAAAADa6r/EAAAAC0lEQVQIHWNgAAIAAAUAAY27m/MAAAAASUVORK5CYII=" data-src="sobel_stencil_node.png" alt="image-20220108153018380"></p>
+<h3 id="4-取得遮挡物体-Mask"><a href="#4-取得遮挡物体-Mask" class="headerlink" title="4. 取得遮挡物体 Mask"></a>4. 取得遮挡物体 Mask</h3><p>既然我们已经得出边缘 Mask 了，现在想看看能不能得出被遮挡物体的 Mask，来实现遮挡高亮效果。<strong>直接拿到遮挡部分似乎有点费劲</strong>，虽然说一个物体被遮挡后，其 CustomDepth 的值（物体场景深度）应该是<strong>大于</strong> SceneDepth 的值（遮挡物场景深度），即 CustomDepth 更远一些，但考虑那些根本就不存在绘制自定义深度物体的像素，其CustomDepth 采样值是远平面值，而其 SceneDepth 值不一定是远平面了，可能是不画 Custom Depth 的物体的值，导致 CustomDepth 依旧比 SceneDepth 大！但是，如果 Custom Depth 和 Scene Depth 相等的话，说明该像素表示的是<strong>物体可见部分</strong>！于是我们可以首先通过那张 CustomStencil 直接拿到<strong>遮挡物体完整的 Mask</strong>，再减去物体可见部分 Mask，就能得到遮挡部分了。</p>
+<p><img class="lazy" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAABGdBTUEAALGPC/xhBQAAADhlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAAqACAAQAAAABAAAAAaADAAQAAAABAAAAAQAAAADa6r/EAAAAC0lEQVQIHWNgAAIAAAUAAY27m/MAAAAASUVORK5CYII=" data-src="mask_flow.png" alt="mask_flow"></p>
+<p>当然，浮点数直接用“等于”去比较是有风险的，尤其是当 SceneDepth 和 CustomDepth 格式都可能不一样的时候。因此此处需要将 Scene Depth 或者 Custom Depth 加上一个 Bias 值，然后相减后将一定范围内的值都看作相等即可。该值可以暴露为参数，用来适配不同平台。</p>
+<p><img class="lazy" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAABGdBTUEAALGPC/xhBQAAADhlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAAqACAAQAAAABAAAAAaADAAQAAAABAAAAAQAAAADa6r/EAAAAC0lEQVQIHWNgAAIAAAUAAY27m/MAAAAASUVORK5CYII=" data-src="visible_object_mask.png" alt="visible_object_mask"></p>
+<h3 id="5-根据-CustomStencil-获取对应颜色值"><a href="#5-根据-CustomStencil-获取对应颜色值" class="headerlink" title="5. 根据 CustomStencil 获取对应颜色值"></a>5. 根据 CustomStencil 获取对应颜色值</h3><p>由于此处我就想实现标记敌人/盟友/NPC三种对象，因此我分配 Stencil 值为：1-&gt;敌人（红色），2-&gt;队友（蓝色），3-&gt;NPC（黄色）。首先为了方便修改，此处将颜色配置直接暴露在外部的 Material Parameter Collection（下称MPC）中，然后材质内部根据 CustomStencil 采样值直接选择对应颜色即可。</p>
+<p>当然，如果 Stencil 是 0 的话（可能对应有物体，但 Stencil 写入值是0，或者没写入；可能没有物体），我想输出一个值为0的alpha，不是 0 则输出1，这样外部节点拿到这个 alpha 后可以控制描边高亮的混合参数。</p>
+<p>实现如下，这里直接借用了 UE 自带节点 <code>3ColorBlend</code>：</p>
+<p><img class="lazy" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAABGdBTUEAALGPC/xhBQAAADhlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAAqACAAQAAAABAAAAAaADAAQAAAABAAAAAQAAAADa6r/EAAAAC0lEQVQIHWNgAAIAAAUAAY27m/MAAAAASUVORK5CYII=" data-src="color_blend.png" alt="image-20220108163927086"></p>
+<p>由于 Stencil 输入值只可能是离散值，因此我们此处只考虑输入值为 0、1、2、3 时的输出准确性即可。输入小数值和越界值输出结果未定义。</p>
+<p>外部节点拿到颜色之后，可以直接根据遮挡部分 Mask 值，将颜色的饱和度和亮度做调整，实现遮挡部位暗色。</p>
+<h3 id="6-得到最终-Mask-值"><a href="#6-得到最终-Mask-值" class="headerlink" title="6. 得到最终 Mask 值"></a>6. 得到最终 Mask 值</h3><p>拿到边缘和遮挡部分的 Mask 值以后，我们再将遮挡部分的值乘上遮挡混合系数和全局混合系数，直接和 PostProcessInput0 做 Lerp 混合即可输出。大功告成！来个大合照：</p>
+<p><img class="lazy" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAABGdBTUEAALGPC/xhBQAAADhlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAAqACAAQAAAABAAAAAaADAAQAAAABAAAAAQAAAADa6r/EAAAAC0lEQVQIHWNgAAIAAAUAAY27m/MAAAAASUVORK5CYII=" data-src="mat.png" alt="mat"></p>
+<p><img class="lazy" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAABGdBTUEAALGPC/xhBQAAADhlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAAqACAAQAAAABAAAAAaADAAQAAAABAAAAAQAAAADa6r/EAAAAC0lEQVQIHWNgAAIAAAUAAY27m/MAAAAASUVORK5CYII=" data-src="mat_inspector.png" alt="mat_inspector"></p>
+<p>同理，如果嫌图看不清楚，可以直接根据文末 Github 链接下载源工程。记得点个 Star 哦！</p>
+<h3 id="7-设置全局后处理-Volume，并添加到后处理材质列表中"><a href="#7-设置全局后处理-Volume，并添加到后处理材质列表中" class="headerlink" title="7. 设置全局后处理 Volume，并添加到后处理材质列表中"></a>7. 设置全局后处理 Volume，并添加到后处理材质列表中</h3><p><img class="lazy" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAABGdBTUEAALGPC/xhBQAAADhlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAAqACAAQAAAABAAAAAaADAAQAAAABAAAAAQAAAADa6r/EAAAAC0lEQVQIHWNgAAIAAAUAAY27m/MAAAAASUVORK5CYII=" data-src="volume.png" alt="volume"></p>
+<h3 id="8-看看效果"><a href="#8-看看效果" class="headerlink" title="8. 看看效果"></a>8. 看看效果</h3><p><img class="lazy" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAABGdBTUEAALGPC/xhBQAAADhlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAAqACAAQAAAABAAAAAaADAAQAAAABAAAAAQAAAADa6r/EAAAAC0lEQVQIHWNgAAIAAAUAAY27m/MAAAAASUVORK5CYII=" data-src="editor_showcase.png" alt="banner"></p>
+<p><img class="lazy" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAABGdBTUEAALGPC/xhBQAAADhlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAAqACAAQAAAABAAAAAaADAAQAAAABAAAAAQAAAADa6r/EAAAAC0lEQVQIHWNgAAIAAAUAAY27m/MAAAAASUVORK5CYII=" data-src="without_highlight.png" alt="without_highlight"></p>
+<p>如果一个物体勾选上写入 CustomDepth，但 Stencil 值为 0，其可以成为<strong>“不显示高亮”的遮挡物</strong>，适合用在 FPS 游戏的主角枪械等前景上。</p>
+<p>Demo 场景不过瘾？来个经典的 ActionRPG 项目试试看：</p>
+<video src="showcase-actionrpg.mp4"></video>
+
+
+
+<h2 id="Part-3-移动端的潜在问题"><a href="#Part-3-移动端的潜在问题" class="headerlink" title="Part.3 移动端的潜在问题"></a>Part.3 移动端的潜在问题</h2><p>上述材质的实现其实比较简单，但在我第一次做完之后，却遇到了不少移动端实机上的问题，导致耗时比预想中长出了好几倍。果然还是开发经验不足导致的啊。</p>
+<h3 id="Sobel-算子中使用-CustomDepth-还是-CustomStencil？"><a href="#Sobel-算子中使用-CustomDepth-还是-CustomStencil？" class="headerlink" title="Sobel 算子中使用 CustomDepth 还是 CustomStencil？"></a>Sobel 算子中使用 CustomDepth 还是 CustomStencil？</h3><p>虽然说上述截图都是使用 CustomStencil，但其实一开始我本意是想使用 CustomDepth 实现。主要差别见下（前者为 Depth，后者为 Stencil）：</p>
+<p><img class="lazy" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAABGdBTUEAALGPC/xhBQAAADhlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAAqACAAQAAAABAAAAAaADAAQAAAABAAAAAQAAAADa6r/EAAAAC0lEQVQIHWNgAAIAAAUAAY27m/MAAAAASUVORK5CYII=" data-src="diff_depth.png" alt="image-20220108172521492"></p>
+<p><img class="lazy" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAABGdBTUEAALGPC/xhBQAAADhlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAAqACAAQAAAABAAAAAaADAAQAAAABAAAAAQAAAADa6r/EAAAAC0lEQVQIHWNgAAIAAAUAAY27m/MAAAAASUVORK5CYII=" data-src="diff_stencil.png" alt="diff_stencil"></p>
+<ul>
+<li><p>用 CustomDepth 的好处在于其可以将<strong>重叠物体中每一个物体都描绘出边缘</strong>，因为其算出来的梯度距离是具有物理意义的，因此设置恰当的远/近梯度值，既可以区分出不同物体（因为不同物体如果挨得不太近，边缘处梯度值还是蛮大的）。而 CustomStencil 由于只是一个蒙版值，两个叠在一起的物体蒙版值是没有区别的，因此描边连成了一片。当然，重叠物体是否描绘边缘更多的还是美术方面的考量，需要根据项目美术风格来定。</p>
+</li>
+<li><p>用 CustomDepth 的麻烦之处就是要指定梯度范围，即在 [ClampMin, ClampMax] 范围内的值被映射为 Edge Mask [0, 1]，导致<strong>其描出来的边理论上是一个渐变</strong>，这在一个物体深度变化很大时（例如上图右侧大白球）比较明显。关于这点，我们可以用不同的映射曲线，例如 Smoothstep 来代替 Lerp：</p>
+<p><img class="lazy" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAABGdBTUEAALGPC/xhBQAAADhlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAAqACAAQAAAABAAAAAaADAAQAAAABAAAAAQAAAADa6r/EAAAAC0lEQVQIHWNgAAIAAAUAAY27m/MAAAAASUVORK5CYII=" data-src="smoothstep.png" alt="smoothstep"></p>
+<p>当然，两个不同物体边缘处的梯度一般情况下是会比一个物体内部梯度大很多的，因此我们可以通过<strong>将 ClampMax 设的很高</strong>来让物体内部的渐变变得不明显。当然这样做的坏处是<strong>重叠物体之间的描边会被减淡</strong>，因此还是要看美术的取舍，例如确定了场景中描边物体不会过大时，ClampMax 可以相对调小一点。</p>
+</li>
+<li><p>CustomDepth 一个最致命的问题，就是<strong>深度这个东西在移动平台和桌面端精度差很多</strong>，例如 Depth Buffer 格式（32/24/16bit），计算精度（全精度/半精度），是否启用 Reversed-Z（这点 UE4 倒是不用考虑，因为其设置了 <code>GL_ARB_clip_control</code>，但 Unity 则不会在 OpenGL 平台开启 Reversed-Z），导致很多参数在 PC 和手机上差别大相径庭，例如下面这两张图，在 PC 上使用 CustomDepth，ClampMax 值可以调到 100,000，而在移动平台该值高过 16,000 就没效果了（使用 OpenGL）。</p>
+<p><img class="lazy" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAABGdBTUEAALGPC/xhBQAAADhlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAAqACAAQAAAABAAAAAaADAAQAAAABAAAAAQAAAADa6r/EAAAAC0lEQVQIHWNgAAIAAAUAAY27m/MAAAAASUVORK5CYII=" data-src="Screenshot_20220108-181112_3329236bee1bbacba1d22d113a1b46b2.jpg" alt="Screenshot_20220108-181112_3329236bee1bbacba1d22d113a1b46b2"></p>
+<p><img class="lazy" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAABGdBTUEAALGPC/xhBQAAADhlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAAqACAAQAAAABAAAAAaADAAQAAAABAAAAAQAAAADa6r/EAAAAC0lEQVQIHWNgAAIAAAUAAY27m/MAAAAASUVORK5CYII=" data-src="Screenshot_20220108-181923_3329236bee1bbacba1d22d113a1b46b2.jpg" alt="Screenshot_20220108-181923_3329236bee1bbacba1d22d113a1b46b2"></p>
+<p>因此为了统一效果，之后还是选用了 CustomStencil 来进行边缘检测。</p>
+</li>
+</ul>
+<h3 id="移动平台后处理拿不到深度？"><a href="#移动平台后处理拿不到深度？" class="headerlink" title="移动平台后处理拿不到深度？"></a>移动平台后处理拿不到深度？</h3><p>如果我们在移动端使用默认的 SceneColorFormat，即 <code>PF_FloatRGBA</code> ，其每个像素占用 16x4=64 bit，在移动端带宽受限的情况下显得不是很划算，因此很多项目都改成了 <code>PF_FloatR11G11B10</code>，其是个 HDR 格式，但由于少了 Alpha 通道，而 UE4 又使用了这个 Alpha 通道给后处理材质做深度，因此<strong>当切换到 R11G11B10 以后，后处理就拿不到深度了。</strong></p>
+<p>此时我们要做两件事：</p>
+<ol>
+<li><p><strong>Depth Buffer 在 Base Pass 结束后可能会被 Invalidate 掉</strong>（<code>glInvalidateFramebuffer</code>），即不让深度从片上缓存写回到内存，来节省移动设备的带宽。代码如下：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// MobileShadingRenderer.cpp:398</span></span><br><span class="line"><span class="comment">// InitViews()</span></span><br><span class="line">bKeepDepthContent = </span><br><span class="line">    bRequiresMultiPass || </span><br><span class="line">    bForceDepthResolve ||</span><br><span class="line">    bRequiresPixelProjectedPlanarRelfectionPass ||</span><br><span class="line">    bSeparateTranslucencyActive ||</span><br><span class="line">    Views[<span class="number">0</span>].bIsReflectionCapture ||</span><br><span class="line">    (bDeferredShading &amp;&amp; bPostProcessUsesSceneDepth) ||</span><br><span class="line">    bShouldRenderVelocities ||</span><br><span class="line">    bIsFullPrepassEnabled;</span><br><span class="line"></span><br><span class="line"><span class="comment">// ...</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> (bKeepDepthContent)</span><br><span class="line">&#123;</span><br><span class="line">    <span class="comment">// store depth if post-processing/capture needs it</span></span><br><span class="line">    DepthTargetAction = EDepthStencilTargetActions::ClearDepthStencil_StoreDepthStencil;</span><br><span class="line">    <span class="comment">// FOpenGLDynamicRHI::RHIEndRenderPass 会触发 RHIDiscardRenderTargets，从而调用 FOpenGL::InvalidateFramebuffer</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<blockquote>
+<p>此处看似可以直接拿来用的 <code>bPostProcessUsesSceneDepth</code> 竟然是给移动延迟渲染管线用的……</p>
+</blockquote>
+<p>此处我们可以通过<strong>直接设置 <code>r.Mobile.ForceDepthResolve</code> 为 1</strong> 来使得 <code>bKeepDepthContent</code> 永远为 <code>true</code>，这样 Depth Attachment 将不会被 Invalidated 了。当然我们也可以添加自己的 CVar。</p>
+</li>
+<li><p>解决了 C++ 侧，我们还得再改一下 Shader，因为后处理 Shader 里也默认深度从 <code>SceneColor.a</code> 中取得了：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">// SceneTexturesCommon.ush:129</span><br><span class="line">float LookupDeviceZ( float2 ScreenUV )</span><br><span class="line">&#123;</span><br><span class="line">// ...</span><br><span class="line">#elif (POST_PROCESS_MATERIAL || POST_PROCESS_MATERIAL_MOBILE) &amp;&amp; !POST_PROCESS_AR_PASSTHROUGH</span><br><span class="line">	#if MOBILE_DEFERRED_SHADING</span><br><span class="line">		return Texture2DSample(MobileSceneTextures.SceneDepthTexture, MobileSceneTextures.SceneDepthTextureSampler, ScreenUV).r;</span><br><span class="line">	#else</span><br><span class="line">		// SceneDepth texture is not accessible during post-processing as we discard it at the end of mobile BasePass</span><br><span class="line">		// instead fetch DeviceZ from SceneColor.A</span><br><span class="line">		return Texture2DSample(MobileSceneTextures.SceneColorTexture, MobileSceneTextures.SceneColorTextureSampler, ScreenUV).a;  // !!</span><br><span class="line">	#endif</span><br><span class="line">// ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>将用 <code>!!</code> 标记行改为直接从 SceneDepthTexture 场景纹理中采样即可，即：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">return Texture2DSample(MobileSceneTextures.SceneDepthTexture, MobileSceneTextures.SceneDepthTextureSampler, ScreenUV).r;</span><br></pre></td></tr></table></figure>
+</li>
+</ol>
+<h3 id="Custom-Depth-性能问题？"><a href="#Custom-Depth-性能问题？" class="headerlink" title="Custom Depth 性能问题？"></a>Custom Depth 性能问题？</h3><p>除了上述的效果问题，我们用来实现描边高亮的 CustomDepth Pass 也有它自己的性能问题，一些是设计使然，一些则可能是为了确保兼容。<strong>此处仅仅先简单列举一些可能存在的问题</strong>，有时间我会再水一篇专门分析 Custom Depth 性能问题并试图去解决的文章，嘻嘻。</p>
+<h4 id="遮挡剔除"><a href="#遮挡剔除" class="headerlink" title="遮挡剔除"></a>遮挡剔除</h4><p>在 Primitive 勾选上 CustomDepth 后，该 Primitive 的遮挡剔除将会失效（视锥剔除依然开启）。如下图所示：</p>
+<p><img class="lazy" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAABGdBTUEAALGPC/xhBQAAADhlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAAqACAAQAAAABAAAAAaADAAQAAAABAAAAAQAAAADa6r/EAAAAC0lEQVQIHWNgAAIAAAUAAY27m/MAAAAASUVORK5CYII=" data-src="oc_no_customdepth.png" alt="oc_no_customdepth"></p>
+<p><img class="lazy" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAABGdBTUEAALGPC/xhBQAAADhlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAAqACAAQAAAABAAAAAaADAAQAAAABAAAAAQAAAADa6r/EAAAAC0lEQVQIHWNgAAIAAAUAAY27m/MAAAAASUVORK5CYII=" data-src="oc_with_customdepth.png" alt="oc_with_customdepth"></p>
+<h4 id="多余的-Depth-Stencil-RT"><a href="#多余的-Depth-Stencil-RT" class="headerlink" title="多余的 Depth / Stencil RT"></a>多余的 Depth / Stencil RT</h4><p>在移动端渲染器中，CustomDepth 输出了三张 Render Target：</p>
+<ul>
+<li>[R16_Float] MobileCustomDepth</li>
+<li>[R8_UNORM] MobileCustomStencil</li>
+<li>[D24S8] CustomDepth</li>
+</ul>
+<p><img class="lazy" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAABGdBTUEAALGPC/xhBQAAADhlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAAqACAAQAAAABAAAAAaADAAQAAAABAAAAAQAAAADa6r/EAAAAC0lEQVQIHWNgAAIAAAUAAY27m/MAAAAASUVORK5CYII=" data-src="rdc_rt.png" alt="image-20220108234727260"></p>
+<p>其中 D24S8 的纹理最终被 Invalidate 掉了，剩下两张纹理被后处理使用。但理论上，我们可以做到<strong>只写入 Depth Attachment</strong>，在 OpenGL 中即体现为 <code>glDrawBuffer(GL_NONE)</code><a target="_blank" rel="noopener" href="https://stackoverflow.com/questions/32956543/make-draw-call-in-opengl-that-only-touches-the-depth-buffer">（OpenGL ES 3.0 以上支持）</a>。</p>
+<h4 id="CustomDepth-Pass-不使用-Instancing-绘制"><a href="#CustomDepth-Pass-不使用-Instancing-绘制" class="headerlink" title="CustomDepth Pass 不使用 Instancing 绘制"></a>CustomDepth Pass 不使用 Instancing 绘制</h4><p>在桌面端以及移动端打开 Mesh Auto-Instancing 的平台上，<strong>CustomDepth Pass 依然不会使用 Instancing 来绘制</strong>。但其实在 Custom Pass 中，对于包含同样 Depth-Stencil State 的物体（CustomStencil 的写入值实际上就在改变 DepthStencilState 的 StencilRef），如果 Mesh 还一致的话，<a target="_blank" rel="noopener" href="https://docs.unrealengine.com/4.27/en-US/ProgrammingAndScripting/Rendering/MeshDrawingPipeline/#drawcallmerging">应该可以触发 Instancing</a>。</p>
+<blockquote>
+<p>在使用 <code>OMSetDepthStencil</code> / <code>glStencilFunc</code> 只变更 Stencil Reference 时，是<strong>不会触发驱动更换/重编译 Pipeline (PSO) 的</strong>，因此一个 Draw Call 的成本不大，其实可以接受。这点也反映在 Vulkan 上，UE 使用的是 Dynamic State，即 <code>vkCmdSetStencilReference</code> 来改变该值。</p>
+<p><img class="lazy" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAABGdBTUEAALGPC/xhBQAAADhlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAAqACAAQAAAABAAAAAaADAAQAAAABAAAAAQAAAADa6r/EAAAAC0lEQVQIHWNgAAIAAAUAAY27m/MAAAAASUVORK5CYII=" data-src="vk_dynamic_pipeline.png" alt="vk_dynamic_pipeline"></p>
+</blockquote>
+<h2 id="Part-4-后记"><a href="#Part-4-后记" class="headerlink" title="Part.4 后记"></a>Part.4 后记</h2><p>其实我一直自诩为一个引擎向游戏开发者，但仍然在实现一个简单的描边+遮挡高亮上栽了几跟头，也让我深深感受到了在现有商业引擎庞大框架体系中，一个看似简单的优化是多么“牵一发而动全身”。</p>
+<p>关于之前提到的 CustomDepth 的优化问题，可能将在之后的博客文章中提到，但由于给手游优化一向不是我的菜，所以不知道得拖更多长时间了。</p>
+<p>最后放上示例项目的 GitHub 链接：<a target="_blank" rel="noopener" href="https://github.com/GavinKG/UE4-Multicolor-Outline-and-Silhouette">https://github.com/GavinKG/UE4-Multicolor-Outline-and-Silhouette</a></p>
+
+
+<div class="article-footer reveal fs14"><section id="license"><div class="header"><span>许可协议</span></div><div class="body"><p>本文采用 <a target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">署名-非商业性使用-相同方式共享 4.0 国际</a> 许可协议，转载请注明出处。</p>
+</div></section></div>
+
+</article>
+
+<div class="related-wrap reveal" id="read-next"><section class="header cap theme"><span>接下来阅读</span></section><section class="body fs14"><a id="next" href="/blog/%E7%A6%BB%E8%BD%B4%E9%80%8F%E8%A7%86%E5%8F%8A%E5%85%B6%E5%BA%94%E7%94%A8/">离轴透视投影 (Off-axis Perspective Projection) 的应用——场景放大、超分辨率截图、镜面/传送门渲染<span class="note">较早</span></a><div class="line"></div><a id="prev" href="/blog/UE%20%E6%B8%B2%E6%9F%93%E6%94%B9%E9%80%A0%EF%BC%9A%E4%BA%A4%E5%8F%89%E6%B8%90%E5%8F%98%E6%95%88%E6%9E%9C/UE%20%E6%B8%B2%E6%9F%93%E6%94%B9%E9%80%A0%EF%BC%9A%E4%BA%A4%E5%8F%89%E6%B8%90%E5%8F%98%E6%95%88%E6%9E%9C%20Part.4%20%E5%88%B6%E4%BD%9C%E6%B8%90%E5%8F%98%E6%9D%90%E8%B4%A8/UE%20%E6%B8%B2%E6%9F%93%E6%94%B9%E9%80%A0%EF%BC%9A%E4%BA%A4%E5%8F%89%E6%B8%90%E5%8F%98%E6%95%88%E6%9E%9C%20Part.4%20%E5%88%B6%E4%BD%9C%E6%B8%90%E5%8F%98%E6%9D%90%E8%B4%A8/">UE 渲染改造：交叉渐变效果 Part.4 制作渐变材质<span class="note">较新</span></a><div class="line"></div><a id="more" href="/blog/archives">检索全部文章</a></section></div>
+
+
+
+
+
+
+
+
+      
+<footer class="page-footer reveal fs12"><hr><div class="text"><p>本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a> 许可协议，转载请注明出处。</p>
+<p>本站由 <a href="https://gavinkg.github.io/blog/blog/">@Gavin_KG</a> 创建，使用 <a target="_blank" rel="noopener" href="https://github.com/xaoxuu/hexo-theme-stellar/tree/1.5.1" title="v1.5.1">Stellar</a> 作为主题。</p>
+</div></footer>
+
+      <div class='float-panel mobile-only blur' style='display:none'>
+  <button type='button' class='sidebar-toggle mobile' onclick='sidebar.toggle()'>
+    <svg class="icon" style="width: 1em; height: 1em;vertical-align: middle;fill: currentColor;overflow: hidden;" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="15301"><path d="M566.407 808.3c26.9-0.1 49.3-20.8 51.6-47.6-1.9-27.7-23.9-49.7-51.6-51.6h-412.6c-28.2-1.4-52.6 19.5-55.5 47.6 2.3 26.8 24.6 47.5 51.6 47.6h416.5v4z m309.3-249.9c26.9-0.1 49.3-20.8 51.6-47.6-2.2-26.8-24.6-47.5-51.6-47.6h-721.9c-27.7-2.8-52.5 17.4-55.3 45.1-0.1 0.8-0.1 1.7-0.2 2.5 0.9 27.2 23.6 48.5 50.7 47.6H875.707z m-103.1-245.9c26.9-0.1 49.3-20.8 51.6-47.6-0.4-28.3-23.2-51.1-51.5-51.6h-618.9c-29.5-1.1-54.3 21.9-55.5 51.4v0.2c1.4 27.8 25.2 49.2 53 47.8 0.8 0 1.7-0.1 2.5-0.2h618.8z" p-id="15302"></path><path d="M566.407 808.3c26.9-0.1 49.3-20.8 51.6-47.6-1.9-27.7-23.9-49.7-51.6-51.6h-412.6c-28.2-1.4-52.6 19.5-55.5 47.6 1.9 27.7 23.9 49.7 51.6 51.6h416.5z m309.3-249.9c26.9-0.1 49.3-20.8 51.6-47.6-2.2-26.8-24.6-47.5-51.6-47.6h-721.9c-27.7-2.8-52.5 17.4-55.3 45.1-0.1 0.8-0.1 1.7-0.2 2.5 0.9 27.2 23.6 48.5 50.7 47.6H875.707z m-103.1-245.9c26.9-0.1 49.3-20.8 51.6-47.6-0.4-28.3-23.2-51.1-51.5-51.6h-618.9c-29.5-1.1-54.3 21.9-55.5 51.4v0.2c1.4 27.8 25.2 49.2 53 47.8 0.8 0 1.7-0.1 2.5-0.2h618.8z" p-id="15303"></path></svg>
+  </button>
+</div>
+
+    </div>
+  </div>
+  <div class='scripts'>
+    <script type="text/javascript">
+  stellar = {
+    // 懒加载 css https://github.com/filamentgroup/loadCSS
+    loadCSS: (href, before, media, attributes) => {
+      var doc = window.document;
+      var ss = doc.createElement("link");
+      var ref;
+      if (before) {
+        ref = before;
+      } else {
+        var refs = (doc.body || doc.getElementsByTagName("head")[0]).childNodes;
+        ref = refs[refs.length - 1];
+      }
+      var sheets = doc.styleSheets;
+      if (attributes) {
+        for (var attributeName in attributes) {
+          if (attributes.hasOwnProperty(attributeName)) {
+            ss.setAttribute(attributeName, attributes[attributeName]);
+          }
+        }
+      }
+      ss.rel = "stylesheet";
+      ss.href = href;
+      ss.media = "only x";
+      function ready(cb) {
+        if (doc.body) {
+          return cb();
+        }
+        setTimeout(function () {
+          ready(cb);
+        });
+      }
+      ready(function () {
+        ref.parentNode.insertBefore(ss, before ? ref : ref.nextSibling);
+      });
+      var onloadcssdefined = function (cb) {
+        var resolvedHref = ss.href;
+        var i = sheets.length;
+        while (i--) {
+          if (sheets[i].href === resolvedHref) {
+            return cb();
+          }
+        }
+        setTimeout(function () {
+          onloadcssdefined(cb);
+        });
+      };
+      function loadCB() {
+        if (ss.addEventListener) {
+          ss.removeEventListener("load", loadCB);
+        }
+        ss.media = media || "all";
+      }
+      if (ss.addEventListener) {
+        ss.addEventListener("load", loadCB);
+      }
+      ss.onloadcssdefined = onloadcssdefined;
+      onloadcssdefined(loadCB);
+      return ss;
+    },
+
+    // 从 butterfly 和 volantis 获得灵感
+    loadScript: (src, opt) => new Promise((resolve, reject) => {
+      var script = document.createElement('script');
+      script.src = src;
+      if (opt) {
+        for (let key of Object.keys(opt)) {
+          script[key] = opt[key]
+        }
+      } else {
+        // 默认异步，如果需要同步，第二个参数传入 {} 即可
+        script.async = true
+      }
+      script.onerror = reject
+      script.onload = script.onreadystatechange = function() {
+        const loadState = this.readyState
+        if (loadState && loadState !== 'loaded' && loadState !== 'complete') return
+        script.onload = script.onreadystatechange = null
+        resolve()
+      }
+      document.head.appendChild(script)
+    }),
+
+    // https://github.com/jerryc127/hexo-theme-butterfly
+    jQuery: (fn) => {
+      if (typeof jQuery === 'undefined') {
+        stellar.loadScript(stellar.plugins.jQuery).then(fn)
+      } else {
+        fn()
+      }
+    }
+  };
+  stellar.github = 'https://github.com/xaoxuu/hexo-theme-stellar/tree/1.5.1';
+  stellar.config = {
+    date_suffix: {
+      just: '刚刚',
+      min: '分钟前',
+      hour: '小时前',
+      day: '天前',
+      month: '个月前',
+    },
+  };
+
+  // required plugins (only load if needs)
+  stellar.plugins = {
+    jQuery: 'https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js',
+    sitesjs: '/blog/js/plugins/sites.js',
+    friendsjs: '/blog/js/plugins/friends.js',
+  };
+
+  // optional plugins
+  if ('true' == 'true') {
+    stellar.plugins.lazyload = Object.assign({"enable":true,"js":"https://cdn.jsdelivr.net/npm/vanilla-lazyload@17.3.1/dist/lazyload.min.js","transition":"blur"});
+  }
+  if ('true' == 'true') {
+    stellar.plugins.swiper = Object.assign({"enable":true,"css":"https://unpkg.com/swiper/swiper-bundle.min.css","js":"https://unpkg.com/swiper/swiper-bundle.min.js"});
+  }
+  if ('' == 'true') {
+    stellar.plugins.scrollreveal = Object.assign({"enable":null,"js":"https://cdn.jsdelivr.net/npm/scrollreveal@4.0.9/dist/scrollreveal.min.js","distance":"8px","duration":500,"interval":100,"scale":1});
+  }
+  if ('true' == 'true') {
+    stellar.plugins.preload = Object.assign({"enable":true,"service":"flying_pages","instant_page":"https://cdn.jsdelivr.net/gh/volantis-x/cdn-volantis@4.1.2/js/instant_page.js","flying_pages":"https://cdn.jsdelivr.net/gh/gijo-varghese/flying-pages@2.1.2/flying-pages.min.js"});
+  }
+</script>
+
+<!-- required -->
+
+  
+<script src="/blog/js/main.js" async></script>
+
+
+
+<!-- optional -->
+
+
+
+<!-- inject -->
+
+
+  </div>
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+        tex2jax: {
+            inlineMath: [ ["$","$"], ["\\(","\\)"] ],
+            skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'],
+            processEscapes: true
+        }
+    });
+    MathJax.Hub.Queue(function() {
+        var all = MathJax.Hub.getAllJax();
+        for (var i = 0; i < all.length; ++i)
+            all[i].SourceElement().parentNode.className += ' has-jax';
+    });
+</script>
+<script src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+</body>
+</html>

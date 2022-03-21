@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang='cn'>
+
+<head>
+  <meta name="generator" content="Hexo 5.4.1">
+  <meta charset="utf-8">
+  
+
+  <meta http-equiv='x-dns-prefetch-control' content='on' />
+  <link rel='dns-prefetch' href='https://cdn.jsdelivr.net'>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+
+  <meta name="renderer" content="webkit">
+  <meta name="force-rendering" content="webkit">
+  <meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1">
+  <meta name="HandheldFriendly" content="True" >
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta name="theme-color" content="#f8f8f8">
+  <title>UE 中对窗口和视口的抽象：Viewport、ViewportClient、ViewFamily、View、ViewStates、SceneRenderer - malos-blog</title>
+
+  
+    <meta name="description" content="UE 中对窗口和视口的抽象：Viewport、ViewportClient、ViewFamily、View、ViewStates、SceneRenderer[TOC] Viewport 和 Viewport ClientUE 在工作时可以一口气渲染大量的画面：UE 包含有不同的窗口，每个窗口也可能会渲染不同场景（例如玩家视角和动态小地图），即使是同一个场景也会有不同的角度（例如本地分屏游戏）。UE">
+<meta property="og:type" content="article">
+<meta property="og:title" content="UE 中对窗口和视口的抽象：Viewport、ViewportClient、ViewFamily、View、ViewStates、SceneRenderer">
+<meta property="og:url" content="https://gavinkg.github.io/blog/UE%20%E4%B8%AD%E5%AF%B9%E7%AA%97%E5%8F%A3%E5%92%8C%E8%A7%86%E5%8F%A3%E7%9A%84%E6%8A%BD%E8%B1%A1/index.html">
+<meta property="og:site_name" content="malos-blog">
+<meta property="og:description" content="UE 中对窗口和视口的抽象：Viewport、ViewportClient、ViewFamily、View、ViewStates、SceneRenderer[TOC] Viewport 和 Viewport ClientUE 在工作时可以一口气渲染大量的画面：UE 包含有不同的窗口，每个窗口也可能会渲染不同场景（例如玩家视角和动态小地图），即使是同一个场景也会有不同的角度（例如本地分屏游戏）。UE">
+<meta property="og:locale">
+<meta property="og:image" content="https://gavinkg.github.io/blog/UE%20%E4%B8%AD%E5%AF%B9%E7%AA%97%E5%8F%A3%E5%92%8C%E8%A7%86%E5%8F%A3%E7%9A%84%E6%8A%BD%E8%B1%A1/editor-viewport.png">
+<meta property="article:published_time" content="2022-03-19T16:00:00.000Z">
+<meta property="article:modified_time" content="2022-03-21T13:52:34.558Z">
+<meta property="article:author" content="Gavin_KG">
+<meta property="article:tag" content="UE">
+<meta property="article:tag" content="UE5">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://gavinkg.github.io/blog/UE%20%E4%B8%AD%E5%AF%B9%E7%AA%97%E5%8F%A3%E5%92%8C%E8%A7%86%E5%8F%A3%E7%9A%84%E6%8A%BD%E8%B1%A1/editor-viewport.png">
+  
+  
+
+  <!-- feed -->
+  
+    <link rel="alternate" href="/blog/atom.xml" title="malos-blog" type="application/atom+xml">
+  
+
+  
+    
+<link rel="stylesheet" href="/blog/css/main.css">
+
+  
+
+  
+
+  
+</head>
+
+<body>
+  
+
+
+  <div class='l_body' id='start'>
+    <aside class='l_left' layout='post'>
+    
+
+
+<header class="header">
+
+<div class="logo-wrap"><a class="title" href="/blog/"><div class="main">malos-blog</div><div class="sub cap">subtitle</div></a></div>
+<nav class="menu dis-select"><a class="nav-item active" href="/blog/">博客</a><a class="nav-item" href="/blog/about/">关于</a></nav></header>
+
+<div class="widgets">
+
+<div class="widget-wrap single" id="toc"><div class="widget-header cap dis-select"><span class="name">本文目录</span></div><div class="widget-body fs14"><div class="doc-tree active"><ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#UE-%E4%B8%AD%E5%AF%B9%E7%AA%97%E5%8F%A3%E5%92%8C%E8%A7%86%E5%8F%A3%E7%9A%84%E6%8A%BD%E8%B1%A1%EF%BC%9AViewport%E3%80%81ViewportClient%E3%80%81ViewFamily%E3%80%81View%E3%80%81ViewStates%E3%80%81SceneRenderer"><span class="toc-text">UE 中对窗口和视口的抽象：Viewport、ViewportClient、ViewFamily、View、ViewStates、SceneRenderer</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#Viewport-%E5%92%8C-Viewport-Client"><span class="toc-text">Viewport 和 Viewport Client</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%B8%B2%E6%9F%93%E5%91%BD%E4%BB%A4%E7%9A%84%E8%B0%83%E7%94%A8%E8%BF%87%E7%A8%8B"><span class="toc-text">渲染命令的调用过程</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#ViewFamily-%E5%92%8C-View"><span class="toc-text">ViewFamily 和 View</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#View-State"><span class="toc-text">View State</span></a></li></ol></li></ol></div></div></div>
+
+
+</div>
+<footer class="footer dis-select"><div class="social-wrap"><a class="social" title="GitHub" href="https://github.com/GavinKG" target="_blank" rel="external nofollow noopener noreferrer"><img class="lazy" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAABGdBTUEAALGPC/xhBQAAADhlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAAqACAAQAAAABAAAAAaADAAQAAAABAAAAAQAAAADa6r/EAAAAC0lEQVQIHWNgAAIAAAUAAY27m/MAAAAASUVORK5CYII=" data-src="https://cdn.jsdelivr.net/gh/cdn-x/placeholder@1.0.3/social/08a41b181ce68.svg"/></a></div></footer>
+
+    </aside>
+    <div class='l_main'>
+      
+
+      
+
+
+<div class="bread-nav fs12"><div id="breadcrumb"><a class="cap breadcrumb" href="/blog/">malos-blog</a><span class="sep"></span><a class="cap breadcrumb" href="/blog/">文章</a></div><div id="post-meta">发布于&nbsp;<time datetime="2022-03-19T16:00:00.000Z">2022-03-20</time></div></div>
+
+<article class='content md post'>
+<h1 class="article-title"><span>UE 中对窗口和视口的抽象：Viewport、ViewportClient、ViewFamily、View、ViewStates、SceneRenderer</span></h1>
+<h3 id="UE-中对窗口和视口的抽象：Viewport、ViewportClient、ViewFamily、View、ViewStates、SceneRenderer"><a href="#UE-中对窗口和视口的抽象：Viewport、ViewportClient、ViewFamily、View、ViewStates、SceneRenderer" class="headerlink" title="UE 中对窗口和视口的抽象：Viewport、ViewportClient、ViewFamily、View、ViewStates、SceneRenderer"></a>UE 中对窗口和视口的抽象：Viewport、ViewportClient、ViewFamily、View、ViewStates、SceneRenderer</h3><p>[TOC]</p>
+<h4 id="Viewport-和-Viewport-Client"><a href="#Viewport-和-Viewport-Client" class="headerlink" title="Viewport 和 Viewport Client"></a>Viewport 和 Viewport Client</h4><p>UE 在工作时可以一口气渲染大量的画面：UE 包含有<strong>不同的窗口</strong>，每个窗口也可能会<strong>渲染不同场景</strong>（例如玩家视角和动态小地图），即使是同一个场景也会有不同的角度（例如本地分屏游戏）。UE必须设计一套机制，一是能够做到上述多角度多视图渲染，二是让<strong>场景渲染器</strong>能够一次尽量渲染多个类似角度，这样渲染器在渲染同一场景的不同角度可以用同一套内部资源，节省性能。</p>
+<p>UE 自然已经帮我们考虑完备了。对于不同的窗口：</p>
+<ul>
+<li><p><a target="_blank" rel="noopener" href="https://docs.unrealengine.com/4.27/en-US/API/Runtime/Engine/FViewport/"><em>FViewport</em></a>：继承自 <em>FRenderTarget</em>，<strong>为上述“窗口”的封装</strong>。作为一个窗口，其首先应该提供一个表面（Render Target），这个表面即能被渲染器绘制，又能够被直接用来呈现其内容，作为我们看到的窗口上的图案。其次，它应该也能够提供和响应任何跟窗口有关的数据和事件，例如是否被激活、是否全屏、鼠标按钮/指针行为等。或者说，<strong>此处就是把和一个“窗口”有关的所有 I/O 封装到了一起。</strong>最常见（可以说是唯一）的派生类为 <em>FSceneViewport</em>：</p>
+</li>
+<li><p><a target="_blank" rel="noopener" href="https://docs.unrealengine.com/4.27/en-US/API/Runtime/Engine/Slate/FSceneViewport/"><em>FSceneViewport</em></a>：<em>FViewport</em> 的最常见派生类。接入了 Slate 的接口 <em>ISlateViewport</em>，意味着其能够在 Slate 体系中被 Slate 的重绘机制驱动（详见下方介绍的 <code>ISlateViewport::OnDrawViewport</code>）。我们能够直观接触到的引擎窗口的 Viewport 几乎都是<em>FSceneViewport</em>。该类目前没有派生类。</p>
+<hr>
+</li>
+<li><p><a target="_blank" rel="noopener" href="https://docs.unrealengine.com/4.27/en-US/API/Runtime/Engine/FViewportClient/"><em>FViewportClient</em></a>：“抽象”类，不包含任何成员变量，可以看作是一个<strong>窗口的管理器，或“驱动”</strong>。如果说上述 <code>FViewport</code> 只是一个窗口对象，此处我们需要窗口管理器承接引擎逻辑和窗口的桥梁，来驱动窗口的绘制和呈现。</p>
+</li>
+<li><p><a target="_blank" rel="noopener" href="https://docs.unrealengine.com/4.27/en-US/API/Runtime/Engine/FCommonViewportClient/"><em>FCommonViewportClient</em></a>：目前唯一继承自 <code>FViewportClient</code> 的派生类，在基类基础上增加一些使用方法，同时也是<strong>大量实际应用的 ViewportClient 的父类</strong>。</p>
+</li>
+<li><p><a target="_blank" rel="noopener" href="https://docs.unrealengine.com/4.27/en-US/API/Editor/UnrealEd/FEditorViewportClient/"><em>FEditorViewportClient</em></a>：<strong>编辑器下</strong>使用的 ViewportClient。</p>
+<p>下面这张图一共包含 9 个 FEditorViewportClient 实例，其中我们能直接看到并参与渲染的有6个，如下图黄色/绿色框所示。隐藏的 3 个为 Viewport 2 对应的正交上、右、后视图（是的，它们被创建出来但没有显示）。</p>
+<p><img class="lazy" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAABGdBTUEAALGPC/xhBQAAADhlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAAqACAAQAAAABAAAAAaADAAQAAAABAAAAAQAAAADa6r/EAAAAC0lEQVQIHWNgAAIAAAUAAY27m/MAAAAASUVORK5CYII=" data-src="editor-viewport.png" alt="image-20220314183910857"></p>
+</li>
+<li><p><a target="_blank" rel="noopener" href="https://docs.unrealengine.com/4.27/en-US/API/Editor/UnrealEd/FLevelEditorViewportClient/"><em>FLevelEditorViewportClient</em></a>：<strong>编辑器下显示游戏场景</strong>的 ViewportClient，例如我们最常使用的场景编辑窗口。<strong>其包含当前 Editor World 的指针</strong>。</p>
+<p>上图中对应为黄色窗口。</p>
+</li>
+<li><p><a target="_blank" rel="noopener" href="https://docs.unrealengine.com/4.27/en-US/API/Runtime/Engine/Engine/UGameViewportClient/"><em>UGameViewportClient</em></a>：<strong>“游戏”专属</strong> ViewportClient。不论是单机运行的游戏（只会有一个实例），还是多 Client 模式启动的 PIE 窗口（可能存在多个实例），都归类于此。<strong>其包含当前 Game World 和 GameInstance 的指针</strong>。</p>
+</li>
+</ul>
+<h4 id="渲染命令的调用过程"><a href="#渲染命令的调用过程" class="headerlink" title="渲染命令的调用过程"></a>渲染命令的调用过程</h4><p>对于 Editor/Game Viewport Client，其都包含一个从 <em>FViewElementDrawer</em> 继承而来的 <strong><code>Draw()</code></strong> 方法，用来绘制其 Viewport 内容。</p>
+<p>其通常情况下会被几种机制调用：</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 编辑器下，由 Slate (UI) 驱动的 FSceneViewport 在窗口大小变动时通知 ViewportClient 进行绘制；</span></span><br><span class="line">(...) <span class="comment">// 一些 Slate UI 层级的调用，底层由 Engine Tick 支撑。</span></span><br><span class="line">SViewport::<span class="built_in">OnPaint</span>(...);</span><br><span class="line">FSceneViewport::<span class="built_in">OnDrawViewport</span>(...); <span class="comment">// 每帧调用</span></span><br><span class="line">FSceneViewport::<span class="built_in">ResizeViewport</span>(uint32 NewSizeX, uint32 NewSizeY, EWindowMode::Type NewWindowMode); <span class="comment">// Resize 时调用</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// 对于实时编辑器窗口（例如勾选了Realtime的场景编辑窗口），UEditorEngine 会在每帧 Tick 的时候直接通知到 ViewportClient 进行绘制。</span></span><br><span class="line">(...)</span><br><span class="line">UEditorEngine::<span class="built_in">Tick</span>(...)</span><br><span class="line">UEditorEngine::<span class="built_in">UpdateSingleViewportClient</span>(...)</span><br><span class="line"></span><br><span class="line"><span class="comment">// 独立游戏时，UGameViewportClient 创建唯一的 FSceneViewport，并且 UGameEngine 直接调用 Viewport 进行绘制。</span></span><br><span class="line">(...)</span><br><span class="line">UGameEngine::<span class="built_in">Tick</span>(...)</span><br><span class="line">UGameEngine::<span class="built_in">RedrawViewports</span>(<span class="type">bool</span> bShouldPresent);</span><br></pre></td></tr></table></figure>
+<p>调用 <code>Draw()</code> 之后的机制如下：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Viewport 层。将会驱动 ViewportClient 进行 Draw。</span></span><br><span class="line">FViewport::<span class="built_in">Draw</span>(<span class="type">bool</span> bShouldPresent);</span><br><span class="line"></span><br><span class="line"><span class="comment">// Viewport Client 层。编辑器走上面，游戏走下面。</span></span><br><span class="line">FEditorViewportClient::<span class="built_in">Draw</span>(FViewport* InViewport, FCanvas* Canvas); </span><br><span class="line">UGameViewportClient::<span class="built_in">Draw</span>(FViewport* InViewport, FCanvas* Canvas);</span><br><span class="line"></span><br><span class="line"><span class="comment">// ViewFamily 层。创建渲染器，将自己传入渲染器中，并开始渲染自己。</span></span><br><span class="line">FRenderModule::<span class="built_in">BeginRenderingViewFamily</span>(FCanvas* Canvas, FSceneViewFamily* ViewFamily);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 在渲染线程启动渲染器进行绘制</span></span><br><span class="line"><span class="built_in">RenderViewFamily_RenderThread</span>(..., FSceneRenderer* SceneRenderer);</span><br><span class="line"></span><br><span class="line">FDeferredShadingSceneRenderer::<span class="built_in">Render</span>(FRDGBuilder&amp; GraphBuilder); <span class="comment">// 桌面延迟</span></span><br><span class="line">FMobileSceneRenderer::<span class="built_in">Render</span>(FRDGBuilder&amp; GraphBuilder); <span class="comment">// 移动渲染器</span></span><br></pre></td></tr></table></figure>
+<p>感兴趣的同学也可以自己加断点试试看。</p>
+<h4 id="ViewFamily-和-View"><a href="#ViewFamily-和-View" class="headerlink" title="ViewFamily 和 View"></a>ViewFamily 和 View</h4><p>跟着上面 <code>Draw</code> 的这条调用路径看下去，可以瞥见 ViewFamily 的初始化和 View 的创建过程。</p>
+<ul>
+<li><p><a target="_blank" rel="noopener" href="https://docs.unrealengine.com/4.27/en-US/API/Runtime/Engine/FSceneViewFamily/">FSceneViewFamily</a>：在上述 <code>Draw</code> 时初始化。<strong>其包含一个渲染目标</strong>（即 Viewport 自己，别忘了 Viewport 本身就是一个 RT），以及一个<strong>场景（<em>FSceneInterface</em>）指针</strong>。颇有一种万事俱备，只差渲染的样子。</p>
+<p>但其<strong>为什么叫 Family 呢</strong>？因为其将会包含<strong>一组共享渲染目标和场景，但只有视角不同的 Views</strong>：</p>
+</li>
+<li><p><a target="_blank" rel="noopener" href="https://docs.unrealengine.com/4.27/en-US/API/Runtime/Engine/FSceneView/">FSceneView</a>：包含在 ViewFamily 里的 View 们<strong>共享渲染目标和场景，只有角度不同。可以被称作“视点”</strong>。<strong>所有 View 被渲染器一次渲染完毕</strong>。</p>
+<blockquote>
+<p>虽然不同的 Viewport 也很可能对应同一个场景，但是其会使用不同的渲染器实例进行渲染，性能显然没有同一个渲染器直接渲染好。这也是为什么我们在渲染器源码中能够看到大量的：</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">for</span> (int32 ViewIndex = <span class="number">0</span>; ViewIndex &lt; Views.<span class="built_in">Num</span>(); ViewIndex++) &#123; ... &#125;</span><br></pre></td></tr></table></figure>
+</blockquote>
+<p>每一个 View 均会在 <code>CalcSceneView</code> 方法中（游戏中实现在 <em>ULocalPlayer</em>，编辑器下实现在 <em>FEditorViewportClient</em> 中）诞生并注册进 ViewFamily。一般情况下，<strong>编辑器下一个 ViewFamily 只会有一个 View</strong>，而游戏中（包括PIE），由于存在多人分屏的情况，<strong>一个 ViewFamily 会存在多个 View</strong>，一个 <em>ULocalPlayer</em>，即一个本地玩家对应一个 View，很符合分屏逻辑是不是。</p>
+<blockquote>
+<p> 当然，多 View 还有一个很关键的用处—— XR 设备（VR/AR/MR）的渲染，但其具体逻辑和分屏有一些不一样，本文不予讨论。</p>
+</blockquote>
+</li>
+<li><p><a target="_blank" rel="noopener" href="https://docs.unrealengine.com/4.27/en-US/ProgrammingAndScripting/Rendering/Overview/">FSceneRenderer</a>：真正用来渲染 ViewFamily 的渲染器。UE 中现在只存在两个渲染器，分别为桌面端渲染器 <em>FDeferredShadingSceneRenderer</em> 和移动端渲染器 <em>FMobileSceneRenderer</em>。渲染器的具体实现极其复杂，网上也有大量成熟的文章，此处不予赘述。</p>
+<blockquote>
+<p>虽然桌面端渲染器被称为 “Deferred”，但其肯定不是从头到尾都是延迟的。其也内置一套 Forward+ 渲染路径，因此我依然习惯直接称之为桌面端渲染器，用于跟移动端渲染器做区分，而移动端渲染器也实现了一套延迟渲染……只能说命名有点混乱。</p>
+</blockquote>
+</li>
+</ul>
+<h4 id="View-State"><a href="#View-State" class="headerlink" title="View State"></a>View State</h4><p>不错。但有一个很致命的问题——在 UE 中，ViewFamily 啊，View 啊，包括渲染器，都是<strong>每帧开始时创建，结束时销毁的</strong>。但很显然，<strong>有一些持久性数据我们需要横跨多帧</strong>，例如上一帧的剔除、SceneTexture 等渲染数据，<strong>当然也包括此处介绍的保留帧。</strong></p>
+<p>隆重介绍 <a target="_blank" rel="noopener" href="https://docs.unrealengine.com/4.27/en-US/API/Runtime/Engine/FSceneViewStateInterface/"><em>FSceneViewStateInterface</em></a> 以及其实现 <em>FSceneViewState</em>。其<strong>常驻在那些不会被每帧重建的结构中</strong>（游戏中为 <em>ULocalPlayer</em>，编辑器中为 <em>FEditorViewportClient</em>），作为<strong>保存持久化数据的容器</strong>。其在初始化 View 时，通过上述介绍过的 <code>CalcSceneView</code> 方法传递给每一个 View，我们便可以在渲染器渲染时直接拿到 ViewState，来获取/存入想要持久化保存的数据了！</p>
+
+
+<div class="article-footer reveal fs14"><section id="license"><div class="header"><span>许可协议</span></div><div class="body"><p>本文采用 <a target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">署名-非商业性使用-相同方式共享 4.0 国际</a> 许可协议，转载请注明出处。</p>
+</div></section></div>
+
+</article>
+
+<div class="related-wrap reveal" id="read-next"><section class="header cap theme"><span>接下来阅读</span></section><section class="body fs14"><a id="next" href="/blog/UE%20%E6%B8%B2%E6%9F%93%E6%94%B9%E9%80%A0%EF%BC%9A%E4%BA%A4%E5%8F%89%E6%B8%90%E5%8F%98%E6%95%88%E6%9E%9C/UE%20%E6%B8%B2%E6%9F%93%E6%94%B9%E9%80%A0%EF%BC%9A%E4%BA%A4%E5%8F%89%E6%B8%90%E5%8F%98%E6%95%88%E6%9E%9C%20Part.1%20%E5%89%8D%E8%A8%80/">UE 渲染改造：交叉渐变效果 Part.1 前言<span class="note">较早</span></a><div class="line"></div><div class="line"></div><a id="more" href="/blog/archives">检索全部文章</a></section></div>
+
+
+
+
+
+
+
+
+      
+<footer class="page-footer reveal fs12"><hr><div class="text"><p>本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a> 许可协议，转载请注明出处。</p>
+<p>本站由 <a href="https://gavinkg.github.io/blog/blog/">@Gavin_KG</a> 创建，使用 <a target="_blank" rel="noopener" href="https://github.com/xaoxuu/hexo-theme-stellar/tree/1.5.1" title="v1.5.1">Stellar</a> 作为主题。</p>
+</div></footer>
+
+      <div class='float-panel mobile-only blur' style='display:none'>
+  <button type='button' class='sidebar-toggle mobile' onclick='sidebar.toggle()'>
+    <svg class="icon" style="width: 1em; height: 1em;vertical-align: middle;fill: currentColor;overflow: hidden;" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="15301"><path d="M566.407 808.3c26.9-0.1 49.3-20.8 51.6-47.6-1.9-27.7-23.9-49.7-51.6-51.6h-412.6c-28.2-1.4-52.6 19.5-55.5 47.6 2.3 26.8 24.6 47.5 51.6 47.6h416.5v4z m309.3-249.9c26.9-0.1 49.3-20.8 51.6-47.6-2.2-26.8-24.6-47.5-51.6-47.6h-721.9c-27.7-2.8-52.5 17.4-55.3 45.1-0.1 0.8-0.1 1.7-0.2 2.5 0.9 27.2 23.6 48.5 50.7 47.6H875.707z m-103.1-245.9c26.9-0.1 49.3-20.8 51.6-47.6-0.4-28.3-23.2-51.1-51.5-51.6h-618.9c-29.5-1.1-54.3 21.9-55.5 51.4v0.2c1.4 27.8 25.2 49.2 53 47.8 0.8 0 1.7-0.1 2.5-0.2h618.8z" p-id="15302"></path><path d="M566.407 808.3c26.9-0.1 49.3-20.8 51.6-47.6-1.9-27.7-23.9-49.7-51.6-51.6h-412.6c-28.2-1.4-52.6 19.5-55.5 47.6 1.9 27.7 23.9 49.7 51.6 51.6h416.5z m309.3-249.9c26.9-0.1 49.3-20.8 51.6-47.6-2.2-26.8-24.6-47.5-51.6-47.6h-721.9c-27.7-2.8-52.5 17.4-55.3 45.1-0.1 0.8-0.1 1.7-0.2 2.5 0.9 27.2 23.6 48.5 50.7 47.6H875.707z m-103.1-245.9c26.9-0.1 49.3-20.8 51.6-47.6-0.4-28.3-23.2-51.1-51.5-51.6h-618.9c-29.5-1.1-54.3 21.9-55.5 51.4v0.2c1.4 27.8 25.2 49.2 53 47.8 0.8 0 1.7-0.1 2.5-0.2h618.8z" p-id="15303"></path></svg>
+  </button>
+</div>
+
+    </div>
+  </div>
+  <div class='scripts'>
+    <script type="text/javascript">
+  stellar = {
+    // 懒加载 css https://github.com/filamentgroup/loadCSS
+    loadCSS: (href, before, media, attributes) => {
+      var doc = window.document;
+      var ss = doc.createElement("link");
+      var ref;
+      if (before) {
+        ref = before;
+      } else {
+        var refs = (doc.body || doc.getElementsByTagName("head")[0]).childNodes;
+        ref = refs[refs.length - 1];
+      }
+      var sheets = doc.styleSheets;
+      if (attributes) {
+        for (var attributeName in attributes) {
+          if (attributes.hasOwnProperty(attributeName)) {
+            ss.setAttribute(attributeName, attributes[attributeName]);
+          }
+        }
+      }
+      ss.rel = "stylesheet";
+      ss.href = href;
+      ss.media = "only x";
+      function ready(cb) {
+        if (doc.body) {
+          return cb();
+        }
+        setTimeout(function () {
+          ready(cb);
+        });
+      }
+      ready(function () {
+        ref.parentNode.insertBefore(ss, before ? ref : ref.nextSibling);
+      });
+      var onloadcssdefined = function (cb) {
+        var resolvedHref = ss.href;
+        var i = sheets.length;
+        while (i--) {
+          if (sheets[i].href === resolvedHref) {
+            return cb();
+          }
+        }
+        setTimeout(function () {
+          onloadcssdefined(cb);
+        });
+      };
+      function loadCB() {
+        if (ss.addEventListener) {
+          ss.removeEventListener("load", loadCB);
+        }
+        ss.media = media || "all";
+      }
+      if (ss.addEventListener) {
+        ss.addEventListener("load", loadCB);
+      }
+      ss.onloadcssdefined = onloadcssdefined;
+      onloadcssdefined(loadCB);
+      return ss;
+    },
+
+    // 从 butterfly 和 volantis 获得灵感
+    loadScript: (src, opt) => new Promise((resolve, reject) => {
+      var script = document.createElement('script');
+      script.src = src;
+      if (opt) {
+        for (let key of Object.keys(opt)) {
+          script[key] = opt[key]
+        }
+      } else {
+        // 默认异步，如果需要同步，第二个参数传入 {} 即可
+        script.async = true
+      }
+      script.onerror = reject
+      script.onload = script.onreadystatechange = function() {
+        const loadState = this.readyState
+        if (loadState && loadState !== 'loaded' && loadState !== 'complete') return
+        script.onload = script.onreadystatechange = null
+        resolve()
+      }
+      document.head.appendChild(script)
+    }),
+
+    // https://github.com/jerryc127/hexo-theme-butterfly
+    jQuery: (fn) => {
+      if (typeof jQuery === 'undefined') {
+        stellar.loadScript(stellar.plugins.jQuery).then(fn)
+      } else {
+        fn()
+      }
+    }
+  };
+  stellar.github = 'https://github.com/xaoxuu/hexo-theme-stellar/tree/1.5.1';
+  stellar.config = {
+    date_suffix: {
+      just: '刚刚',
+      min: '分钟前',
+      hour: '小时前',
+      day: '天前',
+      month: '个月前',
+    },
+  };
+
+  // required plugins (only load if needs)
+  stellar.plugins = {
+    jQuery: 'https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js',
+    sitesjs: '/blog/js/plugins/sites.js',
+    friendsjs: '/blog/js/plugins/friends.js',
+  };
+
+  // optional plugins
+  if ('true' == 'true') {
+    stellar.plugins.lazyload = Object.assign({"enable":true,"js":"https://cdn.jsdelivr.net/npm/vanilla-lazyload@17.3.1/dist/lazyload.min.js","transition":"blur"});
+  }
+  if ('true' == 'true') {
+    stellar.plugins.swiper = Object.assign({"enable":true,"css":"https://unpkg.com/swiper/swiper-bundle.min.css","js":"https://unpkg.com/swiper/swiper-bundle.min.js"});
+  }
+  if ('' == 'true') {
+    stellar.plugins.scrollreveal = Object.assign({"enable":null,"js":"https://cdn.jsdelivr.net/npm/scrollreveal@4.0.9/dist/scrollreveal.min.js","distance":"8px","duration":500,"interval":100,"scale":1});
+  }
+  if ('true' == 'true') {
+    stellar.plugins.preload = Object.assign({"enable":true,"service":"flying_pages","instant_page":"https://cdn.jsdelivr.net/gh/volantis-x/cdn-volantis@4.1.2/js/instant_page.js","flying_pages":"https://cdn.jsdelivr.net/gh/gijo-varghese/flying-pages@2.1.2/flying-pages.min.js"});
+  }
+</script>
+
+<!-- required -->
+
+  
+<script src="/blog/js/main.js" async></script>
+
+
+
+<!-- optional -->
+
+
+
+<!-- inject -->
+
+
+  </div>
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+        tex2jax: {
+            inlineMath: [ ["$","$"], ["\\(","\\)"] ],
+            skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'],
+            processEscapes: true
+        }
+    });
+    MathJax.Hub.Queue(function() {
+        var all = MathJax.Hub.getAllJax();
+        for (var i = 0; i < all.length; ++i)
+            all[i].SourceElement().parentNode.className += ' has-jax';
+    });
+</script>
+<script src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+</body>
+</html>
