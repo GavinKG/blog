@@ -20,16 +20,16 @@
   <title>UE 中对窗口和视口的抽象：Viewport、ViewportClient、ViewFamily、View、ViewStates、SceneRenderer - malos-blog</title>
 
   
-    <meta name="description" content="UE 中对窗口和视口的抽象：Viewport、ViewportClient、ViewFamily、View、ViewStates、SceneRenderer[TOC] Viewport 和 Viewport ClientUE 在工作时可以一口气渲染大量的画面：UE 包含有不同的窗口，每个窗口也可能会渲染不同场景（例如玩家视角和动态小地图），即使是同一个场景也会有不同的角度（例如本地分屏游戏）。UE">
+    <meta name="description" content="Viewport 和 Viewport ClientUE 在工作时可以一口气渲染大量的画面：UE 包含有不同的窗口，每个窗口也可能会渲染不同场景（例如玩家视角和动态小地图），即使是同一个场景也会有不同的角度（例如本地分屏游戏）。UE必须设计一套机制，一是能够做到上述多角度多视图渲染，二是让场景渲染器能够一次尽量渲染多个类似角度，这样渲染器在渲染同一场景的不同角度可以用同一套内部资源，节省性能。">
 <meta property="og:type" content="article">
 <meta property="og:title" content="UE 中对窗口和视口的抽象：Viewport、ViewportClient、ViewFamily、View、ViewStates、SceneRenderer">
 <meta property="og:url" content="https://gavinkg.github.io/blog/UE%20%E4%B8%AD%E5%AF%B9%E7%AA%97%E5%8F%A3%E5%92%8C%E8%A7%86%E5%8F%A3%E7%9A%84%E6%8A%BD%E8%B1%A1/index.html">
 <meta property="og:site_name" content="malos-blog">
-<meta property="og:description" content="UE 中对窗口和视口的抽象：Viewport、ViewportClient、ViewFamily、View、ViewStates、SceneRenderer[TOC] Viewport 和 Viewport ClientUE 在工作时可以一口气渲染大量的画面：UE 包含有不同的窗口，每个窗口也可能会渲染不同场景（例如玩家视角和动态小地图），即使是同一个场景也会有不同的角度（例如本地分屏游戏）。UE">
+<meta property="og:description" content="Viewport 和 Viewport ClientUE 在工作时可以一口气渲染大量的画面：UE 包含有不同的窗口，每个窗口也可能会渲染不同场景（例如玩家视角和动态小地图），即使是同一个场景也会有不同的角度（例如本地分屏游戏）。UE必须设计一套机制，一是能够做到上述多角度多视图渲染，二是让场景渲染器能够一次尽量渲染多个类似角度，这样渲染器在渲染同一场景的不同角度可以用同一套内部资源，节省性能。">
 <meta property="og:locale">
 <meta property="og:image" content="https://gavinkg.github.io/blog/UE%20%E4%B8%AD%E5%AF%B9%E7%AA%97%E5%8F%A3%E5%92%8C%E8%A7%86%E5%8F%A3%E7%9A%84%E6%8A%BD%E8%B1%A1/editor-viewport.png">
 <meta property="article:published_time" content="2022-03-19T16:00:00.000Z">
-<meta property="article:modified_time" content="2022-03-21T13:52:34.558Z">
+<meta property="article:modified_time" content="2022-03-22T03:11:29.080Z">
 <meta property="article:author" content="Gavin_KG">
 <meta property="article:tag" content="UE">
 <meta property="article:tag" content="UE5">
@@ -65,12 +65,12 @@
 
 <header class="header">
 
-<div class="logo-wrap"><a class="title" href="/blog/"><div class="main">malos-blog</div><div class="sub cap">subtitle</div></a></div>
+<div class="logo-wrap"><a class="title" href="/blog/"><div class="main">malos-blog</div><div class="sub cap">邪恶马洛斯的审判之地</div></a></div>
 <nav class="menu dis-select"><a class="nav-item active" href="/blog/">博客</a><a class="nav-item" href="/blog/about/">关于</a></nav></header>
 
 <div class="widgets">
 
-<div class="widget-wrap single" id="toc"><div class="widget-header cap dis-select"><span class="name">本文目录</span></div><div class="widget-body fs14"><div class="doc-tree active"><ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#UE-%E4%B8%AD%E5%AF%B9%E7%AA%97%E5%8F%A3%E5%92%8C%E8%A7%86%E5%8F%A3%E7%9A%84%E6%8A%BD%E8%B1%A1%EF%BC%9AViewport%E3%80%81ViewportClient%E3%80%81ViewFamily%E3%80%81View%E3%80%81ViewStates%E3%80%81SceneRenderer"><span class="toc-text">UE 中对窗口和视口的抽象：Viewport、ViewportClient、ViewFamily、View、ViewStates、SceneRenderer</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#Viewport-%E5%92%8C-Viewport-Client"><span class="toc-text">Viewport 和 Viewport Client</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%B8%B2%E6%9F%93%E5%91%BD%E4%BB%A4%E7%9A%84%E8%B0%83%E7%94%A8%E8%BF%87%E7%A8%8B"><span class="toc-text">渲染命令的调用过程</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#ViewFamily-%E5%92%8C-View"><span class="toc-text">ViewFamily 和 View</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#View-State"><span class="toc-text">View State</span></a></li></ol></li></ol></div></div></div>
+<div class="widget-wrap single" id="toc"><div class="widget-header cap dis-select"><span class="name">本文目录</span></div><div class="widget-body fs14"><div class="doc-tree active"><ol class="toc"><li class="toc-item toc-level-4"><a class="toc-link" href="#Viewport-%E5%92%8C-Viewport-Client"><span class="toc-text">Viewport 和 Viewport Client</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%B8%B2%E6%9F%93%E5%91%BD%E4%BB%A4%E7%9A%84%E8%B0%83%E7%94%A8%E8%BF%87%E7%A8%8B"><span class="toc-text">渲染命令的调用过程</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#ViewFamily-%E5%92%8C-View"><span class="toc-text">ViewFamily 和 View</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#View-State"><span class="toc-text">View State</span></a></li></ol></div></div></div>
 
 
 </div>
@@ -87,7 +87,7 @@
 
 <article class='content md post'>
 <h1 class="article-title"><span>UE 中对窗口和视口的抽象：Viewport、ViewportClient、ViewFamily、View、ViewStates、SceneRenderer</span></h1>
-<h3 id="UE-中对窗口和视口的抽象：Viewport、ViewportClient、ViewFamily、View、ViewStates、SceneRenderer"><a href="#UE-中对窗口和视口的抽象：Viewport、ViewportClient、ViewFamily、View、ViewStates、SceneRenderer" class="headerlink" title="UE 中对窗口和视口的抽象：Viewport、ViewportClient、ViewFamily、View、ViewStates、SceneRenderer"></a>UE 中对窗口和视口的抽象：Viewport、ViewportClient、ViewFamily、View、ViewStates、SceneRenderer</h3><p>[TOC]</p>
+<span id="more"></span>
 <h4 id="Viewport-和-Viewport-Client"><a href="#Viewport-和-Viewport-Client" class="headerlink" title="Viewport 和 Viewport Client"></a>Viewport 和 Viewport Client</h4><p>UE 在工作时可以一口气渲染大量的画面：UE 包含有<strong>不同的窗口</strong>，每个窗口也可能会<strong>渲染不同场景</strong>（例如玩家视角和动态小地图），即使是同一个场景也会有不同的角度（例如本地分屏游戏）。UE必须设计一套机制，一是能够做到上述多角度多视图渲染，二是让<strong>场景渲染器</strong>能够一次尽量渲染多个类似角度，这样渲染器在渲染同一场景的不同角度可以用同一套内部资源，节省性能。</p>
 <p>UE 自然已经帮我们考虑完备了。对于不同的窗口：</p>
 <ul>
@@ -152,6 +152,20 @@
 
 
 
+
+  <div class='related-wrap md reveal' id="comments">
+    <div class='cmt-title cap theme'>
+      快来参与讨论吧
+    </div>
+    <div class='cmt-body beaudar'>
+      
+
+<svg class="loading" style="vertical-align: middle;fill: currentColor;overflow: hidden;" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="2709"><path d="M832 512c0-176-144-320-320-320V128c211.2 0 384 172.8 384 384h-64zM192 512c0 176 144 320 320 320v64C300.8 896 128 723.2 128 512h64z" p-id="2710"></path></svg>
+
+<div id="beaudar" repo="GavinKG/blog-comments" issue-term="pathname" theme="preferred-color-scheme" input-position="top" comment-order="desc" loading="false" branch="main"></div>
+
+    </div>
+  </div>
 
 
 
@@ -302,6 +316,34 @@
 
 
 <!-- optional -->
+
+  <script>
+  function loadBeaudar() {
+    const els = document.querySelectorAll("#comments #beaudar");
+    if (els.length === 0) return;
+    els.forEach((el, i) => {
+      try {
+        el.innerHTML = '';
+      } catch (error) {
+        console.log(error);
+      }
+      var script = document.createElement('script');
+      script.src = 'https://beaudar.lipk.org/client.js';
+      script.async = true;
+      for (let key of Object.keys(el.attributes)) {
+        let attr = el.attributes[key];
+        if (['class', 'id'].includes(attr.name) === false) {
+          script.setAttribute(attr.name, attr.value);
+        }
+      }
+      el.appendChild(script);
+    });
+  }
+  window.addEventListener('DOMContentLoaded', (event) => {
+      loadBeaudar();
+  });
+</script>
+
 
 
 
