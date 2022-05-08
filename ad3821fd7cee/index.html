@@ -23,18 +23,18 @@
     <meta name="description" content="Viewport 和 Viewport ClientUE 在工作时可以一口气渲染大量的画面：UE 包含有不同的窗口，每个窗口也可能会渲染不同场景（例如玩家视角和动态小地图），即使是同一个场景也会有不同的角度（例如本地分屏游戏）。UE必须设计一套机制，一是能够做到上述多角度多视图渲染，二是让场景渲染器能够一次尽量渲染多个类似角度，这样渲染器在渲染同一场景的不同角度可以用同一套内部资源，节省性能。">
 <meta property="og:type" content="article">
 <meta property="og:title" content="UE 中对窗口和视口的抽象：Viewport、ViewportClient、ViewFamily、View、ViewStates、SceneRenderer">
-<meta property="og:url" content="https://gavinkg.github.io/blog/UE%20%E4%B8%AD%E5%AF%B9%E7%AA%97%E5%8F%A3%E5%92%8C%E8%A7%86%E5%8F%A3%E7%9A%84%E6%8A%BD%E8%B1%A1/index.html">
+<meta property="og:url" content="https://gavinkg.github.io/blog/ad3821fd7cee/index.html">
 <meta property="og:site_name" content="malos-blog">
 <meta property="og:description" content="Viewport 和 Viewport ClientUE 在工作时可以一口气渲染大量的画面：UE 包含有不同的窗口，每个窗口也可能会渲染不同场景（例如玩家视角和动态小地图），即使是同一个场景也会有不同的角度（例如本地分屏游戏）。UE必须设计一套机制，一是能够做到上述多角度多视图渲染，二是让场景渲染器能够一次尽量渲染多个类似角度，这样渲染器在渲染同一场景的不同角度可以用同一套内部资源，节省性能。">
 <meta property="og:locale">
-<meta property="og:image" content="https://gavinkg.github.io/blog/UE%20%E4%B8%AD%E5%AF%B9%E7%AA%97%E5%8F%A3%E5%92%8C%E8%A7%86%E5%8F%A3%E7%9A%84%E6%8A%BD%E8%B1%A1/editor-viewport.png">
+<meta property="og:image" content="https://gavinkg.github.io/blog/ad3821fd7cee/editor-viewport.png">
 <meta property="article:published_time" content="2022-03-19T16:00:00.000Z">
 <meta property="article:modified_time" content="2022-03-22T03:11:29.080Z">
 <meta property="article:author" content="Gavin_KG">
 <meta property="article:tag" content="UE">
 <meta property="article:tag" content="UE5">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://gavinkg.github.io/blog/UE%20%E4%B8%AD%E5%AF%B9%E7%AA%97%E5%8F%A3%E5%92%8C%E8%A7%86%E5%8F%A3%E7%9A%84%E6%8A%BD%E8%B1%A1/editor-viewport.png">
+<meta name="twitter:image" content="https://gavinkg.github.io/blog/ad3821fd7cee/editor-viewport.png">
   
   
 
@@ -146,7 +146,7 @@
 
 </article>
 
-<div class="related-wrap reveal" id="read-next"><section class="header cap theme"><span>接下来阅读</span></section><section class="body fs14"><a id="next" href="/blog/UE%20%E6%B8%B2%E6%9F%93%E6%94%B9%E9%80%A0%EF%BC%9A%E4%BA%A4%E5%8F%89%E6%B8%90%E5%8F%98%E6%95%88%E6%9E%9C/UE%20%E6%B8%B2%E6%9F%93%E6%94%B9%E9%80%A0%EF%BC%9A%E4%BA%A4%E5%8F%89%E6%B8%90%E5%8F%98%E6%95%88%E6%9E%9C%20Part.1%20%E5%89%8D%E8%A8%80/">UE 渲染改造：交叉渐变效果 Part.1 前言<span class="note">较早</span></a><div class="line"></div><div class="line"></div><a id="more" href="/blog/archives">检索全部文章</a></section></div>
+<div class="related-wrap reveal" id="read-next"><section class="header cap theme"><span>接下来阅读</span></section><section class="body fs14"><a id="next" href="/blog/654d210c8793/">UE 渲染改造：交叉渐变效果 Part.1 前言<span class="note">较早</span></a><div class="line"></div><div class="line"></div><a id="more" href="/blog/archives">检索全部文章</a></section></div>
 
 
 
